@@ -1,0 +1,11 @@
+{
+  "watch": [
+    "backend/config",
+    "backend/controllers",
+    "backend/middleware",
+    "backend/models",
+    "backend/routes",
+    "backend/utils",
+    "backend/server.js"
+  ]
+}

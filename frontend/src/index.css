@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #d5d2c8 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: #d5d2c8;
+    border-radius: 999px;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid #3355ff;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-signal px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-signal-hover active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-lg border border-paper-line bg-paper-card px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink/20 hover:bg-paper active:scale-[0.98];
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.tiptap-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: #14161f;
+}
+.tiptap-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9c9a92;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap-content h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.875rem; font-weight: 700; margin: 1.5em 0 0.5em; letter-spacing: -0.02em; line-height: 1.2; }
+.tiptap-content h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 700; margin: 1.4em 0 0.45em; letter-spacing: -0.015em; line-height: 1.25; }
+.tiptap-content h3 { font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 600; margin: 1.2em 0 0.4em; letter-spacing: -0.01em; }
+.tiptap-content h4 { font-family: 'Space Grotesk', sans-serif; font-size: 1.0625rem; font-weight: 600; margin: 1em 0 0.35em; }
+.tiptap-content h5 { font-family: 'Space Grotesk', sans-serif; font-size: 0.9375rem; font-weight: 600; margin: 0.8em 0 0.3em; text-transform: uppercase; letter-spacing: 0.05em; }
+.tiptap-content h6 { font-family: 'Space Grotesk', sans-serif; font-size: 0.875rem; font-weight: 600; margin: 0.75em 0 0.25em; color: #6b7280; }
+.tiptap-content p { margin: 0.65em 0; }
+.tiptap-content ul, .tiptap-content ol { margin: 0.6em 0; padding-left: 1.5em; }
+.tiptap-content ul { list-style: disc; }
+.tiptap-content ol { list-style: decimal; }
+.tiptap-content li { margin: 0.2em 0; }
+.tiptap-content blockquote { border-left: 3px solid #3355ff; padding-left: 1em; margin: 0.8em 0; color: #6b7280; font-style: italic; }
+.tiptap-content code { background: #eeece5; padding: 0.15em 0.4em; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+.tiptap-content a { color: #3355ff; text-decoration: underline; }
+.tiptap-content strong { font-weight: 700; }
+.tiptap-content img { max-width: 100%; border-radius: 8px; margin: 0.6em 0; }
+.tiptap-content table { border-collapse: collapse; width: 100%; margin: 0.8em 0; table-layout: fixed; }
+.tiptap-content table td, .tiptap-content table th { border: 1px solid #e7e4dc; padding: 0.4em 0.6em; text-align: left; vertical-align: top; }
+.tiptap-content table th { background: #f6f5f2; font-weight: 600; }
+.tiptap-content table .selectedCell { background: #eaedff; }
