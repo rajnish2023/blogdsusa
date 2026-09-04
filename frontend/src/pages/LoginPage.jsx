@@ -31,7 +31,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-ink px-4">
       <div className="w-full max-w-sm animate-slideUp rounded-2xl bg-paper-card p-8 shadow-pop">
-        <div className="mb-6">
+        <div className="mb-6 flex justify-center">
           <Logo theme="dark" />
         </div>
 
