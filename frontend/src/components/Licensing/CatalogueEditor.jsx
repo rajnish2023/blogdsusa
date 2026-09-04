@@ -23,7 +23,7 @@ const TIER_STYLE = {
 const TIER_LABEL = {
   essentials: "Essentials",
   premium: "Premium",
-  addon: "Extension",
+  addon: "Add-On",
   beyond: "Finance & Ops",
 };
 

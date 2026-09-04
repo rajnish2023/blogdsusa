@@ -97,7 +97,7 @@ const GROUP_SUB = {
 const TIER_TAG = {
   essentials: { label: "Essentials",    cls: "tag-ess" },
   premium:    { label: "Premium",       cls: "tag-prem" },
-  addon:      { label: "Extension",     cls: "tag-addon" },
+  addon:      { label: "Add-On",        cls: "tag-addon" },
   beyond:     { label: "Finance & Ops", cls: "tag-beyond" },
 };
 

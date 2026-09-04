@@ -357,6 +357,8 @@ const statementView = (model) => ({
   monthly: model.monthly,
   annual: model.annual,
   threeYear: model.threeYear,
+  foMinSeats: model.foMinSeats,
+  foMinimumApplied: model.foMinimumApplied,
   // the two blocks under the totals
   beyondDrivers: model.beyondDrivers,
   extensions: model.extensions,
