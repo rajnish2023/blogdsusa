@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import Logo from "../components/Layout/Logo";
 
 export default function LoginPage() {
-  const { login, user, initializing } = useAuth();
+  const { login, user, initializing, settings } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -31,8 +31,12 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-ink px-4">
       <div className="w-full max-w-sm animate-slideUp rounded-2xl bg-paper-card p-8 shadow-pop">
-        <div className="mb-6 flex justify-center">
-          <Logo theme="dark" />
+        <div className="mb-6 flex justify-center text-center">
+          <div className="font-display text-1xl font-bold tracking-wider">
+            <span className="text-[#0e1b2d]">DYNAMICS</span>
+            <span className="text-[#e1262d] ml-1.5">SQUARE</span>
+            <sup className="text-[10px] font-medium text-muted ml-0.5">™</sup>
+          </div>
         </div>
 
         <h1 className="font-display text-xl font-semibold text-ink">Sign in</h1>

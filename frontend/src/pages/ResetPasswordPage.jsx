@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { resetPasswordRequest } from "../api/authApi";
-import Logo from "../components/Layout/Logo";
+import { useAuth } from "../auth/AuthContext";
 
 export default function ResetPasswordPage() {
+  const { settings } = useAuth();
   const { token } = useParams();
   const navigate = useNavigate();
 
@@ -48,8 +49,12 @@ export default function ResetPasswordPage() {
     <div className="flex h-screen w-screen items-center justify-center bg-ink px-4">
       <div className="w-full max-w-sm animate-slideUp rounded-2xl bg-paper-card p-8 shadow-pop">
         {/* Logo */}
-        <div className="mb-6">
-          <Logo theme="dark" />
+        <div className="mb-6 flex justify-center text-center">
+          <div className="font-display text-1xl font-bold tracking-wider">
+            <span className="text-[#0e1b2d]">DYNAMICS</span>
+            <span className="text-[#e1262d] ml-1.5">SQUARE</span>
+            <sup className="text-[10px] font-medium text-muted ml-0.5">™</sup>
+          </div>
         </div>
 
         {success ? (
