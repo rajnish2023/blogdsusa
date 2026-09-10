@@ -35,29 +35,64 @@ exports.sqlUploadMiddleware = sqlUpload.single("sqlFile");
  
 function parseTupleValues(tupleStr) {
   const values = [];
-  let currentVal = "";
-  let inString = false;
-  let escapeNext = false;
+  let i = 0;
 
-  for (let i = 0; i < tupleStr.length; i++) {
-    const char = tupleStr[i];
-    if (escapeNext) {
-      if (char === "n") currentVal += "\n";
-      else if (char === "r") currentVal += "\r";
-      else if (char === "t") currentVal += "\t";
-      else currentVal += char;
-      escapeNext = false;
+  while (i < tupleStr.length) {
+    
+    while (i < tupleStr.length && (tupleStr[i] === ',' || tupleStr[i] === ' ')) i++;
+    if (i >= tupleStr.length) break;
+
+    if (tupleStr[i] === "'") {
+      
+      i++; // skip opening quote
+      let val = "";
+      while (i < tupleStr.length) {
+        const ch = tupleStr[i];
+        if (ch === "\\") {
+          i++;
+          const esc = tupleStr[i] || "";
+          
+          if      (esc === "n")  val += "\n";
+          else if (esc === "r")  val += "\r";
+          else if (esc === "t")  val += "\t";
+          else if (esc === "'")  val += "'";
+          else if (esc === '"')  val += '"';
+          else if (esc === "\\") val += "\\";
+          else if (esc === "0")  val += "\0";
+          else if (esc === "Z")  val += "\x1a";
+          else                   val += esc; // unknown escape → keep char as-is
+          i++;
+        } else if (ch === "'") {
+          
+          if (tupleStr[i + 1] === "'") {
+            val += "'"; i += 2; // '' → single quote
+          } else {
+            i++; break; // end of quoted string
+          }
+        } else {
+          val += ch; i++;
+        }
+      }
+      values.push(val);
+    } else if (tupleStr.substring(i, i + 4).toUpperCase() === "NULL") {
+      values.push(null);
+      i += 4;
+    } else {
+      // Unquoted value (number, keyword, etc.)
+      let val = "";
+      while (i < tupleStr.length && tupleStr[i] !== "," && tupleStr[i] !== ")") {
+        val += tupleStr[i++];
+      }
+      const trimmed = val.trim();
+      values.push(trimmed === "" ? null : trimmed);
     }
-    else if (char === "\\") { escapeNext = true; }
-    else if (char === "'") { inString = !inString; }
-    else if (char === "," && !inString) { values.push(cleanValue(currentVal)); currentVal = ""; }
-    else { currentVal += char; }
   }
-  values.push(cleanValue(currentVal));
   return values;
 }
 
 function cleanValue(val) {
+ 
+  if (val === null || val === undefined) return null;
   val = val.trim();
   if (val === "NULL" || val === "null") return null;
   if (val.startsWith("'") && val.endsWith("'")) return val.slice(1, -1);
@@ -141,7 +176,7 @@ function downloadFile(url, destPath) {
 
 async function downloadAndMapUrl(oldUrl) {
   if (!oldUrl || typeof oldUrl !== "string") return oldUrl;
-  // Match any TLD (.com, .ca, .co.uk, etc) and support optional /public/ prefix before upload/
+  
   const domainMatch = oldUrl.match(/https?:\/\/blognew\.dynamicssquare\.[a-z.]+\/(public\/)?upload\/(.+)/);
   if (domainMatch) {
     const rel = domainMatch[2];
@@ -161,41 +196,19 @@ async function downloadAndMapUrl(oldUrl) {
 
 async function downloadAndReplaceHtmlUrls(html) {
   if (!html) return html;
-  // Match any TLD (.com, .ca, .co.uk, etc) with optional /public/ prefix
-  const urlRegex = /https?:\/\/blognew\.dynamicssquare\.[a-z.]+\/(public\/)?upload\/[^\s"'>\)]+/g;
+ 
+  const urlRegex = /https?:\/\/blognew\.dynamicssquare\.[a-z.]+\/(public\/)?upload\/[^\s"'>)]+/g;
   const urls = [...new Set(html.match(urlRegex) || [])];
   let result = html;
   for (const oldUrl of urls) {
     const localUrl = await downloadAndMapUrl(oldUrl);
     result = result.split(oldUrl).join(localUrl);
   }
-  // Clean up inline CSS (strip style="..." entirely)
-  result = result.replace(/\sstyle\s*=\s*("|')[^"']*("|')/gi, "");
-  
-  // Clean up completely empty tags (h1-h6, p, div, span, strong, b, em, i)
-  // We use a while loop to catch deeply nested empty tags like <div><p><br></p></div>
-  const emptyTagRegex = /<(p|h[1-6]|div|span|strong|em|b|i)[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi;
-  let previousResult;
-  do {
-    previousResult = result;
-    result = result.replace(emptyTagRegex, "");
-  } while (result !== previousResult);
-  
-  // Add proper formatting: Insert newlines BEFORE and AFTER major block tags so it's perfectly readable in the editor!
-  result = result.replace(/>\s*</g, "><"); // First, strip all weird arbitrary spacing between tags
-  
-  // Newline BEFORE opening tags
-  result = result.replace(/(<(p|h[1-6]|div|ul|ol|li|table|blockquote|figure)[^>]*>)/gi, "\n$1");
-  
-  // Newline AFTER closing tags
-  result = result.replace(/(<\/(p|h[1-6]|div|ul|ol|li|table|blockquote|figure)>)/gi, "$1\n");
-  
-  // Strip any accidental double-newlines created by nesting
-  result = result.replace(/\n\s*\n/g, "\n");
 
-  return result.trim();
+  return result;
 }
  
+
 exports.runMigration = async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No SQL file uploaded." });
  
