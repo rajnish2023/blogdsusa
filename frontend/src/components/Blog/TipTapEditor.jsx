@@ -249,6 +249,62 @@ function TableDropdown({ editor, disabled, inTable }) {
   );
 }
 
+const emptySeo = { metaTitle: "", metaDescription: "", focusKeyword: "" };
+
+// Helper to precisely format TipTap HTML for the database/frontend output
+const cleanTipTapHTML = (html) => {
+  if (!html) return "";
+  
+  // Create a detached DOM document to manipulate the HTML safely
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  
+  doc.querySelectorAll("table").forEach((table) => {
+    // 1. Remove inline styles and colgroups
+    table.removeAttribute("style");
+    table.querySelectorAll("colgroup").forEach(c => c.remove());
+    
+    // 2. Add Bootstrap table classes
+    table.className = "table table-bordered table-striped align-middle";
+    
+    const tbody = table.querySelector("tbody");
+    if (tbody) {
+      const firstRow = tbody.querySelector("tr");
+      if (firstRow) {
+        const cells = firstRow.querySelectorAll("td, th");
+        const isHeaderRow = cells.length > 0 && Array.from(cells).every(cell => cell.tagName.toLowerCase() === 'th');
+        
+        // 3. Move TH header row into a proper <thead class="table-dark">
+        if (isHeaderRow) {
+          let thead = table.querySelector("thead");
+          if (!thead) {
+            thead = doc.createElement("thead");
+            thead.className = "table-dark";
+            table.insertBefore(thead, tbody);
+          } else {
+            thead.className = "table-dark";
+          }
+          thead.appendChild(firstRow);
+        }
+      }
+      
+      // 4. Strip paragraphs and col/rowspans inside ALL cells (TDs and THs)
+      table.querySelectorAll("th, td").forEach(cell => {
+        if (cell.getAttribute("colspan") === "1") cell.removeAttribute("colspan");
+        if (cell.getAttribute("rowspan") === "1") cell.removeAttribute("rowspan");
+        if (cell.tagName.toLowerCase() === 'th') cell.setAttribute("scope", "col");
+        
+        // If the only child is a paragraph, unwrap it
+        const p = cell.querySelector("p");
+        if (p && cell.children.length === 1) {
+          cell.innerHTML = p.innerHTML;
+        }
+      });
+    }
+  });
+  
+  return doc.body.innerHTML;
+};
+
 export default function TipTapEditor({ value, onChange, placeholder = "Write your post...", variant = "default", fullHeight = false }) {
   const fileInputRef = useRef(null);
   const rawHtmlRef = useRef(null); // stores last raw code-view HTML as source of truth
@@ -321,7 +377,7 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
     content: value || "",
     onUpdate: ({ editor: ed }) => {
       rawHtmlRef.current = null; // user edited in visual mode → code view should reflect that
-      onChange?.(ed.getHTML());
+      onChange?.(cleanTipTapHTML(ed.getHTML()));
     },
     editorProps: {
       attributes: {
@@ -336,7 +392,7 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
 
   useEffect(() => {
     if (!editor || codeView) return;
-    const current = editor.getHTML();
+    const current = cleanTipTapHTML(editor.getHTML());
     if (value !== undefined && value !== current) {
       editor.commands.setContent(value || "", false);
       if (rawHtmlRef.current === null) {
@@ -430,7 +486,7 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
       // Entering code view:
       // If the user previously saved raw HTML from code view, show THAT — not
       // TipTap's mangled reconstruction of it (which strips divs/styles etc.)
-      const source = rawHtmlRef.current !== null ? rawHtmlRef.current : editor.getHTML();
+      const source = rawHtmlRef.current !== null ? rawHtmlRef.current : cleanTipTapHTML(editor.getHTML());
       setCodeDraft(formatHTML(source));
       rawHtmlRef.current = null; // will be re-set when they exit code view
       setCodeView(true);
