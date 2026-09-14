@@ -433,27 +433,70 @@ exports.getBlogsByTag = async (req, res) => {
 };
 
 // 6a. Get All Authors
-exports.listPublicAuthors = async (req, res) => {
+ exports.listPublicAuthors = async (req, res) => {
   try {
-    // Find all authors that have at least one published blog
-    const publishedBlogs = await Blog.find({ status: "published" }).distinct("author");
     
-    let authors = await User.find({ _id: { $in: publishedBlogs } })
+    const publishedBlogs = await Blog.find({
+      status: "published",
+    }).distinct("author");
+
+    let authors = await User.find({
+      _id: { $in: publishedBlogs },
+    })
       .select(`${SAFE_AUTHOR_FIELDS} authorSlug`)
       .lean();
 
-    // Sort authors by designation alphabetically (since no specific rank logic is requested)
-    // Authors without designation go to the end
+    // Custom author order
+    const authorOrder = [
+      "Darshan",
+      "Ankush",
+      "Saurabh",
+      "Shreyansh",
+      "Sarbin",
+      "Divya",
+      "Arish",
+      "Nitesh",
+      "Vivek",
+      "Mukesh",
+      "Awanish",
+      "Samar",
+      "Ayush",
+      "Meha",
+    ];
+
+    
+    const orderMap = new Map(
+      authorOrder.map((name, index) => [name.toLowerCase(), index])
+    );
+
     authors.sort((a, b) => {
-      if (a.designation && !b.designation) return -1;
-      if (!a.designation && b.designation) return 1;
-      if (!a.designation && !b.designation) return a.name.localeCompare(b.name);
-      return a.designation.localeCompare(b.designation) || a.name.localeCompare(b.name);
+      
+      const firstNameA = a.name?.trim().split(/\s+/)[0]?.toLowerCase() || "";
+      const firstNameB = b.name?.trim().split(/\s+/)[0]?.toLowerCase() || "";
+
+      const orderA = orderMap.has(firstNameA)
+        ? orderMap.get(firstNameA)
+        : Infinity;
+
+      const orderB = orderMap.has(firstNameB)
+        ? orderMap.get(firstNameB)
+        : Infinity;
+
+      // Custom order
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+       
+      return (a.name || "").localeCompare(b.name || "");
     });
 
     res.status(200).json(authors);
   } catch (err) {
     console.error("listPublicAuthors error:", err);
-    res.status(500).json({ message: "Error fetching authors" });
+    res.status(500).json({
+      message: "Error fetching authors",
+    });
   }
 };
+
