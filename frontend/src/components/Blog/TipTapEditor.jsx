@@ -330,6 +330,9 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
         autolink: true,
         protocols: ["http", "https", "mailto"],
         validate: (href) => /^https?:\/\//.test(href) || /^mailto:/.test(href),
+        HTMLAttributes: {
+          rel: null,
+        },
       }),
       ...(isMinimal
         ? []
@@ -367,6 +370,11 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
                   default: null,
                   parseHTML: (el) => el.getAttribute("class") || null,
                   renderHTML: (attrs) => attrs.class ? { class: attrs.class } : {},
+                },
+                rel: {
+                  default: null,
+                  parseHTML: (el) => el.getAttribute("rel") || null,
+                  renderHTML: (attrs) => attrs.rel ? { rel: attrs.rel } : {},
                 },
               },
             },
