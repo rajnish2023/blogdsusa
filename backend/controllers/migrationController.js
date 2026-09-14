@@ -102,7 +102,8 @@ function cleanValue(val) {
 function parseSqlDump(content) {
   const TARGET_TABLES = ["blog_categories", "users", "gallaries", "pages", "blogs"];
   let i = 0, inString = false, escapeNext = false, inTuple = false;
-  let currentTuple = "", activeTable = "";
+  let activeTable = "";
+  let tupleStart = -1;
   const tableColumns = {};
   const tablesData = {};
   TARGET_TABLES.forEach((t) => (tablesData[t] = []));
@@ -111,12 +112,12 @@ function parseSqlDump(content) {
 
   while (i < content.length) {
     const char = content[i];
-    if (escapeNext) { if (inTuple) currentTuple += char; escapeNext = false; i++; continue; }
-    if (char === "\\") { if (inTuple) currentTuple += char; escapeNext = true; i++; continue; }
-    if (char === "'") { if (inTuple) currentTuple += char; inString = !inString; i++; continue; }
+    if (escapeNext) { escapeNext = false; i++; continue; }
+    if (char === "\\") { escapeNext = true; i++; continue; }
+    if (char === "'") { inString = !inString; i++; continue; }
 
     if (!inString) {
-      if (content.substring(i, i + INSERT_KW.length).toUpperCase() === INSERT_KW) {
+      if (!inTuple && content.substring(i, i + INSERT_KW.length).toUpperCase() === INSERT_KW) {
         const endOfHeader = content.indexOf("VALUES", i);
         if (endOfHeader !== -1) {
           const header = content.slice(i, endOfHeader + 6);
@@ -133,25 +134,27 @@ function parseSqlDump(content) {
         }
       }
 
-      if (char === "(" && !inTuple && activeTable) { inTuple = true; currentTuple = ""; }
-      else if (char === ")" && inTuple) {
+      if (char === "(" && !inTuple && activeTable) { 
+        inTuple = true; 
+        tupleStart = i + 1;
+      } else if (char === ")" && inTuple) {
         const next = content[i + 1] || "";
         if (next === "," || next === ";") {
           inTuple = false;
-          const vals = parseTupleValues(currentTuple);
+          const tupleStr = content.substring(tupleStart, i);
+          const vals = parseTupleValues(tupleStr);
           const cols = tableColumns[activeTable];
           if (cols) {
             const record = {};
             cols.forEach((c, idx) => (record[c] = vals[idx]));
             tablesData[activeTable].push(record);
           }
-          currentTuple = "";
           if (next === ";") activeTable = "";
           i += 2;
           continue;
-        } else { currentTuple += char; }
-      } else if (inTuple) { currentTuple += char; }
-    } else { if (inTuple) currentTuple += char; }
+        }
+      }
+    }
     i++;
   }
   return tablesData;
