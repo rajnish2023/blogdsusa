@@ -33,7 +33,7 @@ const app = express();
 
 connectDB();
  
-app.set("trust proxy", true);  
+app.set("trust proxy", 1);  
  
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
@@ -43,6 +43,7 @@ app.use(
         process.env.CLIENT_URL,
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://www.dynamicssquare.com"
       ].filter(Boolean);
       // Allow requests with no origin (e.g. mobile apps, curl, Postman)
       if (!origin || allowed.includes(origin)) return callback(null, true);
