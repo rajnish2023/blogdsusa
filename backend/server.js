@@ -45,7 +45,7 @@ app.use(
         "http://localhost:3000",
         "https://www.dynamicssquare.com"
       ].filter(Boolean);
-      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      // Allow requests with no origin 
       if (!origin || allowed.includes(origin)) return callback(null, true);
       callback(new Error(`CORS blocked: ${origin}`));
     },
