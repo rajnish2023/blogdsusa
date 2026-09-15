@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Calculator, Plus, Search, Inbox, ListChecks, FileText, Eye, Trash2,
-  ArrowLeft, Loader2, ExternalLink, Pencil,
+  ArrowLeft, Loader2, ExternalLink, Pencil, Globe,
 } from "lucide-react";
 import Toast from "../components/Shared/Toast";
 import ConfirmDialog from "../components/Shared/ConfirmDialog";
 import Pagination from "../components/Shared/Pagination";
 import QuestionBuilder from "../components/Estimator/QuestionBuilder";
 import ResultPageEditor from "../components/Estimator/ResultPageEditor";
+import LandingPageEditor from "../components/Estimator/LandingPageEditor";
 import ResponseDetailModal from "../components/Estimator/ResponseDetailModal";
 import EstimatorModal from "../components/Estimator/EstimatorModal";
 import {
@@ -18,6 +19,7 @@ import {
   deleteEstimator,
   saveEstimatorQuestions,
   saveEstimatorResult,
+  saveEstimatorPage,
   fetchEstimatorResponses,
   deleteEstimatorResponse,
 } from "../api/estimatorApi";
@@ -35,6 +37,19 @@ function StatusPill({ status }) {
       }`}
     >
       {active ? "Active" : "Draft"}
+    </span>
+  );
+}
+
+function LivePill({ isLive }) {
+  const live = isLive === 1;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+        live ? "bg-ink/10 text-ink" : "bg-paper-line text-muted"
+      }`}
+    >
+      <Globe size={9} /> {live ? "Live" : "Unpublished"}
     </span>
   );
 }
@@ -235,6 +250,19 @@ function EstimatorDetail({ id, onBack, showToast, can }) {
     }
   };
 
+  const savePage = async (payload) => {
+    setSaving(true);
+    try {
+      await saveEstimatorPage(id, payload);
+      showToast("Landing page saved");
+      await load();
+    } catch (err) {
+      showToast(err.response?.data?.message || "Could not save the landing page", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="flex items-center justify-center py-24 text-muted">
@@ -248,6 +276,7 @@ function EstimatorDetail({ id, onBack, showToast, can }) {
 
   const TABS = [
     { key: "questions", label: "Questions", icon: ListChecks },
+    { key: "landing", label: "Landing page", icon: Globe },
     { key: "result", label: "Result page", icon: FileText },
     { key: "responses", label: "Submissions", icon: Inbox },
   ];
@@ -264,19 +293,26 @@ function EstimatorDetail({ id, onBack, showToast, can }) {
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="font-display text-xl font-semibold text-ink">{estimator.estimator_name}</h1>
               <StatusPill status={estimator.status} />
+              <LivePill isLive={estimator.isLive} />
             </div>
             <p className="mt-1 font-mono text-[11px] text-muted">
               id {estimator.id} · {estimator.currency?.name} ({symbol}) · base {symbol} {estimator.base_cost}
             </p>
-            {/* The public endpoint is keyed on this id — surfaced so anyone
-                wiring up a frontend can copy it without digging. */}
-            <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-paper px-2 py-1 font-mono text-[11px] text-muted">
-              <ExternalLink size={11} />
-              GET /api/get-all-questions/{estimator.id}
-            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-paper px-2 py-1 font-mono text-[11px] text-muted">
+                <ExternalLink size={11} />
+                GET /api/public/estimators/get-all-questions/{estimator.id}
+              </span>
+              {estimator.estimator_slug && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-paper px-2 py-1 font-mono text-[11px] text-muted">
+                  <Globe size={11} />
+                  GET /api/public/estimators/page/{estimator.estimator_slug}
+                </span>
+              )}
+            </div>
           </div>
           {canEdit && (
             <button onClick={() => setEditing(true)} className="btn-secondary inline-flex items-center gap-2">
@@ -307,8 +343,21 @@ function EstimatorDetail({ id, onBack, showToast, can }) {
           key={`q-${estimator.id}-${data.questions.length}`}
           questions={data.questions}
           baseCost={estimator.base_cost}
+          baseQues={estimator.base_ques}
+          baseDetails={estimator.base_details}
+          services={data.services}
           currencySymbol={symbol}
           onSave={saveQuestions}
+          saving={saving}
+          canEdit={canEdit}
+        />
+      )}
+      {tab === "landing" && (
+        <LandingPageEditor
+          key={`p-${estimator.id}`}
+          page={data.page}
+          slug={estimator.estimator_slug}
+          onSave={savePage}
           saving={saving}
           canEdit={canEdit}
         />
@@ -434,6 +483,7 @@ export default function EstimatorPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-display text-sm font-semibold text-ink">{e.estimator_name}</span>
                           <StatusPill status={e.status} />
+                          <LivePill isLive={e.isLive} />
                         </div>
                         <p className="mt-1 font-mono text-[11px] text-muted">
                           id {e.id} · {e.questionCount} question{e.questionCount === 1 ? "" : "s"} ·{" "}
@@ -441,6 +491,11 @@ export default function EstimatorPage() {
                           {e.base_cost} base · {e.responseCount} submission
                           {e.responseCount === 1 ? "" : "s"}
                         </p>
+                        {e.estimator_slug && (
+                          <p className="mt-0.5 truncate font-mono text-[11px] text-muted">
+                            /{e.estimator_slug}
+                          </p>
+                        )}
                       </button>
                       <button
                         onClick={() => setOpenId(e.id)}

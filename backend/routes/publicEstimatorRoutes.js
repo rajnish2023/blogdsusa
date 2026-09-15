@@ -2,6 +2,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const {
   getAllEstimators,
+  getEstimatorPage,
   getAllQuestions,
   getAllQuestionsNew,
   submitFormData,
@@ -29,6 +30,7 @@ const submitLimiter = rateLimit({
 });
 
 router.get("/get-all-estimators", readLimiter, getAllEstimators);
+router.get("/page/:slug", readLimiter, getEstimatorPage);
 // -new before the bare :id form so it is not swallowed by the param route.
 router.get("/get-all-questions-new/:id", readLimiter, getAllQuestionsNew);
 router.get("/get-all-questions/:id", readLimiter, getAllQuestions);

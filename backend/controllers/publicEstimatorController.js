@@ -1,6 +1,7 @@
 const Estimator = require("../models/Estimator");
 const EstimatorQuestion = require("../models/EstimatorQuestion");
 const EstimatorResponse = require("../models/EstimatorResponse");
+const EstimatorResult = require("../models/EstimatorResult");
 const Currency = require("../models/Currency");
 const Setting = require("../models/Setting");
 const { calculateEstimate } = require("../utils/estimatorEngine");
@@ -28,11 +29,14 @@ const getAllEstimators = async (req, res) => {
       return {
         id: e.legacy_id,
         estimator_name: e.estimator_name,
+        estimator_slug: e.estimator_slug,
         service_id: JSON.stringify(e.service_id || []),
         base_cost: e.base_cost,
         base_ques: e.base_ques,
         base_details: e.base_details,
         status: e.status,
+        isLive: e.isLive,
+        short_description: e.short_description,
         // The relation the original meant to load: id, symbol and name only.
         currency: currency
           ? { id: currency.legacy_id, symbol: currency.symbol, name: currency.name }
@@ -65,7 +69,17 @@ const getAllQuestions = async (req, res) => {
       ques_details: q.ques_details,
       type: q.multi_select === "1" ? "multi_select" : "radio",
       mandatory: q.require_single_select,
+      // "1" asks the calculator to render a picker with a free-text field
+      // instead of the default radio/checkbox list.
+      input_field: q.input_field,
+      // Kept as bare strings so the calculator that already reads this endpoint
+      // keeps working; `answers` carries the per-option detail alongside it.
       options: (q.answers || []).map((a) => a.option),
+      answers: (q.answers || []).map((a) => ({
+        option: a.option,
+        // The open-ended choice ("4+", "40+") the visitor types a value against.
+        other: a.other === "1" ? "1" : "0",
+      })),
     }));
 
     return res.json(payload);
@@ -96,6 +110,72 @@ const getAllQuestionsNew = async (req, res) => {
     }));
 
     return res.json(payload);
+  } catch (err) {
+    return res.json({ error: err.message });
+  }
+};
+
+/* GET /api/public/estimators/page/:slug */
+const getEstimatorPage = async (req, res) => {
+  try {
+    const slug = String(req.params.slug || "").trim();
+    const estimator = await Estimator.findOne({
+      ...Estimator.liveFilter(),
+      estimator_slug: slug,
+    }).lean();
+    if (!estimator) return res.status(404).json({ error: "Estimator not found" });
+
+    const [currency, result, questions] = await Promise.all([
+      Currency.findOne({ legacy_id: estimator.currency }).lean(),
+      EstimatorResult.findOne({ est_id: estimator.legacy_id }).lean(),
+      liveQuestions(estimator.legacy_id),
+    ]);
+
+    return res.json({
+      estimator: {
+        id: estimator.legacy_id,
+        estimator_name: estimator.estimator_name,
+        estimator_slug: estimator.estimator_slug,
+        base_ques: estimator.base_ques,
+        base_details: estimator.base_details,
+        base_cost: estimator.base_cost,
+        short_description: estimator.short_description,
+        currency: currency
+          ? { id: currency.legacy_id, symbol: currency.symbol, name: currency.name }
+          : null,
+      },
+      seo: {
+        meta_title: estimator.meta_title,
+        meta_keyword: estimator.meta_keyword,
+        meta_description: estimator.meta_description,
+        meta_tag: estimator.meta_tag,
+        meta_image: estimator.meta_image,
+        robots: estimator.isindex === 1 ? "index, follow" : "noindex, nofollow",
+        isindex: estimator.isindex,
+      },
+      additional_script: estimator.additional_script,
+      page_view: estimator.page_view,
+      questions: questions.sort(byLegacyOrder).map((q) => ({
+        ques_id: q.legacy_id,
+        ques_name: q.ques_name,
+        ques_details: q.ques_details,
+        type: q.multi_select === "1" ? "multi_select" : "radio",
+        mandatory: q.require_single_select,
+        input_field: q.input_field,
+        options: (q.answers || []).map((a) => a.option),
+        answers: (q.answers || []).map((a) => ({
+          option: a.option,
+          other: a.other === "1" ? "1" : "0",
+        })),
+      })),
+      result: result
+        ? {
+            intro_heading: result.intro_heading,
+            intro_text: result.intro_text,
+            pricing_explanation: result.pricing_explanation,
+          }
+        : null,
+    });
   } catch (err) {
     return res.json({ error: err.message });
   }
@@ -207,6 +287,7 @@ const triggerEmail = async (req, res) => {
 
 module.exports = {
   getAllEstimators,
+  getEstimatorPage,
   getAllQuestions,
   getAllQuestionsNew,
   submitFormData,

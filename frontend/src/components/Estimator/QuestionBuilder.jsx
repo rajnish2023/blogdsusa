@@ -10,7 +10,9 @@ const ANSWER_TYPES = [
   { value: "percentage", label: "Percentage" },
 ];
 
-const blankAnswer = () => ({ option: "", type: "cost", min: "0", max: "0", cost: "0", percentage: "0" });
+const blankAnswer = () => ({
+  option: "", type: "cost", min: "0", max: "0", cost: "0", percentage: "0", other: "0",
+});
 
 const blankQuestion = () => ({
   ques_id: null,
@@ -19,6 +21,7 @@ const blankQuestion = () => ({
   answers: [blankAnswer(), blankAnswer()],
   multi_select: "0",
   require_single_select: "1",
+  input_field: "0",
 });
 
 function Toggle({ checked, onChange, label, hint }) {
@@ -103,6 +106,15 @@ function AnswerRow({ answer, onChange, onRemove, canRemove }) {
             className="w-full rounded-lg border border-paper-line bg-paper px-2 py-1.5 text-sm text-ink outline-none focus:border-ink"
           />
         )}
+      </td>
+      <td className="p-1.5 text-center">
+        <input
+          type="checkbox"
+          checked={answer.other === "1"}
+          onChange={(e) => set("other", e.target.checked ? "1" : "0")}
+          title="Let the visitor type their own value against this option"
+          className="h-4 w-4 cursor-pointer accent-ink"
+        />
       </td>
       <td className="w-10 p-1.5 text-right">
         <button
@@ -202,6 +214,12 @@ function QuestionCard({ question, index, total, onChange, onRemove, onMove, curr
               label="Required"
               hint="Visitor must answer before continuing"
             />
+            <Toggle
+              checked={question.input_field === "1"}
+              onChange={(v) => set("input_field", v ? "1" : "0")}
+              label="Show as a field"
+              hint="Renders a picker with a text input instead of a radio list"
+            />
           </div>
 
           <div>
@@ -223,9 +241,15 @@ function QuestionCard({ question, index, total, onChange, onRemove, onMove, curr
             <table className="w-full table-fixed">
               <thead>
                 <tr className="text-left">
-                  <th className="w-[40%] px-1.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted">Answer</th>
-                  <th className="w-[22%] px-1.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted">Pricing</th>
+                  <th className="w-[36%] px-1.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted">Answer</th>
+                  <th className="w-[20%] px-1.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted">Pricing</th>
                   <th className="px-1.5 pb-1 text-[10px] font-medium uppercase tracking-wider text-muted">Value</th>
+                  <th
+                    className="w-14 px-1.5 pb-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted"
+                    title="Open-ended: the visitor types their own value, the way the legacy 4+ / 40+ options do"
+                  >
+                    Open
+                  </th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -255,12 +279,20 @@ function QuestionCard({ question, index, total, onChange, onRemove, onMove, curr
   );
 }
 
-export default function QuestionBuilder({ questions, baseCost, currencySymbol, onSave, saving, canEdit }) {
+export default function QuestionBuilder({
+  questions, baseCost, baseQues, baseDetails, services,
+  currencySymbol, onSave, saving, canEdit,
+}) {
   const [items, setItems] = useState(questions);
   const [cost, setCost] = useState(baseCost ?? "0");
+  const [ques, setQues] = useState(baseQues ?? "");
+  const [details, setDetails] = useState(baseDetails ?? "");
 
   const dirty =
-    JSON.stringify(items) !== JSON.stringify(questions) || String(cost) !== String(baseCost ?? "0");
+    JSON.stringify(items) !== JSON.stringify(questions) ||
+    String(cost) !== String(baseCost ?? "0") ||
+    ques !== (baseQues ?? "") ||
+    details !== (baseDetails ?? "");
 
   const move = (from, to) => {
     if (to < 0 || to >= items.length) return;
@@ -274,34 +306,84 @@ export default function QuestionBuilder({ questions, baseCost, currencySymbol, o
 
   const unnamed = items.filter((q) => !String(q.ques_name || "").trim()).length;
 
+  const serviceLabel = (services || [])
+    .map((s) => s.service_name)
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-paper-line bg-paper-card p-4">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Base cost</p>
-          <div className="mt-1 flex items-center gap-2">
-            {currencySymbol && <span className="text-lg font-semibold text-muted">{currencySymbol}</span>}
-            <input
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              disabled={!canEdit}
-              className="w-40 rounded-lg border border-paper-line bg-paper px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-ink disabled:opacity-60"
-            />
-          </div>
-          <p className="mt-1 text-xs text-muted">Added to both ends of every quote.</p>
+ 
+      <div className="rounded-xl border border-paper-line bg-paper-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-paper-line p-4">
+          <p className="font-display text-sm font-semibold text-ink">
+            {serviceLabel || "Base"}
+          </p>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() =>
+                onSave({
+                  questions: items,
+                  base_cost: cost,
+                  base_ques: ques,
+                  base_details: details,
+                })
+              }
+              disabled={saving || !dirty || unnamed > 0}
+              className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              {saving ? "Saving…" : dirty ? "Save questions" : "Saved"}
+            </button>
+          )}
         </div>
 
-        {canEdit && (
-          <button
-            type="button"
-            onClick={() => onSave({ questions: items, base_cost: cost })}
-            disabled={saving || !dirty || unnamed > 0}
-            className="btn-primary inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            {saving ? "Saving…" : dirty ? "Save questions" : "Saved"}
-          </button>
-        )}
+        <div className="space-y-4 p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_12rem]">
+            <div>
+              <label className="font-mono text-[10px] uppercase tracking-widest text-muted">
+                Base question
+              </label>
+              <input
+                value={ques}
+                onChange={(e) => setQues(e.target.value)}
+                disabled={!canEdit}
+                placeholder="Core Finance"
+                className="mt-1.5 w-full rounded-lg border border-paper-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-ink disabled:opacity-60"
+              />
+            </div>
+            <div>
+              <label className="font-mono text-[10px] uppercase tracking-widest text-muted">
+                Base cost
+              </label>
+              <div className="mt-1.5 flex items-center gap-2">
+                {currencySymbol && (
+                  <span className="text-lg font-semibold text-muted">{currencySymbol}</span>
+                )}
+                <input
+                  value={cost}
+                  onChange={(e) => setCost(e.target.value)}
+                  disabled={!canEdit}
+                  className="w-full rounded-lg border border-paper-line bg-paper px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-ink disabled:opacity-60"
+                />
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted">The base cost is added to both ends of every quote.</p>
+
+          <div>
+            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-muted">
+              What the base includes
+            </p>
+            <TipTapEditor
+              value={details}
+              onChange={setDetails}
+              placeholder="Environment Setup for 1 Company (legal entity)…"
+              variant="compact"
+            />
+          </div>
+        </div>
       </div>
 
       {unnamed > 0 && (

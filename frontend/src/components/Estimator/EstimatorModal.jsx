@@ -9,9 +9,11 @@ export default function EstimatorModal({ estimator, onSave, onClose, onToast }) 
   const isEdit = Boolean(estimator);
 
   const [name, setName] = useState(estimator?.estimator_name || "");
+  const [slug, setSlug] = useState(estimator?.estimator_slug || "");
   const [currency, setCurrency] = useState(estimator?.currency_id ?? "");
   const [baseCost, setBaseCost] = useState(estimator?.base_cost ?? "0");
   const [status, setStatus] = useState(estimator?.status ?? "1");
+  const [isLive, setIsLive] = useState(estimator?.isLive === 1 ? 1 : 0);
   const [services, setServices] = useState(isEdit ? [] : [""]);
   const [currencies, setCurrencies] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -35,9 +37,11 @@ export default function EstimatorModal({ estimator, onSave, onClose, onToast }) 
     try {
       await onSave({
         estimator_name: name.trim(),
+        estimator_slug: slug.trim(),
         currency: Number(currency),
         base_cost: String(baseCost ?? "0"),
         status,
+        isLive,
         ...(isEdit ? {} : { service_names: services.map((s) => s.trim()).filter(Boolean) }),
       });
     } finally {
@@ -49,7 +53,7 @@ export default function EstimatorModal({ estimator, onSave, onClose, onToast }) 
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/50 p-4 animate-fadeIn" onClick={onClose}>
       <form
         onSubmit={submit}
-        className="w-full max-w-md animate-scaleIn rounded-2xl bg-paper-card p-6 shadow-pop"
+        className="max-h-[90vh] w-full max-w-lg animate-scaleIn overflow-y-auto rounded-2xl bg-paper-card p-6 shadow-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between">
@@ -71,6 +75,24 @@ export default function EstimatorModal({ estimator, onSave, onClose, onToast }) 
               placeholder="Business Central Pricing Estimator"
               className="mt-1.5 w-full rounded-lg border border-paper-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-ink"
             />
+          </div>
+
+          <div>
+            <label className="font-mono text-[10px] uppercase tracking-widest text-muted">
+              Page URL
+            </label>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span className="font-mono text-sm text-muted">/</span>
+              <input
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="erp-implementation-cost-calculator"
+                className="w-full rounded-lg border border-paper-line bg-paper px-3 py-2 font-mono text-sm text-ink outline-none focus:border-ink"
+              />
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              Where the public calculator is served. Leave blank to derive it from the name.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -109,6 +131,31 @@ export default function EstimatorModal({ estimator, onSave, onClose, onToast }) 
               <option value="0">Draft — hidden from the public API</option>
             </select>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsLive((v) => (v === 1 ? 0 : 1))}
+              aria-pressed={isLive === 1}
+              aria-label="Publish the landing page"
+              className={`mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                isLive === 1 ? "bg-ink" : "bg-paper-line"
+              }`}
+            >
+              <span
+                className={`block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  isLive === 1 ? "translate-x-4" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+            <span>
+              <span className="text-sm font-medium text-ink">Publish the landing page</span>
+              <span className="block text-xs text-muted">
+                Serves the marketing page at the URL above. The questions API is gated by Status,
+                separately from this.
+              </span>
+            </span>
+          </label>
 
           {!isEdit && (
             <div>

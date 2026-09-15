@@ -40,6 +40,11 @@ export const saveEstimatorResult = async (id, payload) => {
   return data;
 };
 
+export const saveEstimatorPage = async (id, payload) => {
+  const { data } = await client.put(`/estimator/${id}/page`, payload);
+  return data;
+};
+
 export const fetchEstimatorResponses = async (id, params) => {
   const { data } = await client.get(`/estimator/${id}/responses`, { params });
   return data;

@@ -7,8 +7,31 @@ const Currency = require("../models/Currency");
 const { calculateEstimate } = require("../utils/estimatorEngine");
 const { sendEstimateEmail } = require("./publicEstimatorController");
 const { nextLegacyId, nextLegacyIds, COUNTERS } = require("../utils/legacyId");
+const slugify = require("slugify");
+const { normalisePageView, trimOrNull } = require("../utils/estimatorPageView");
 
 const flag = (v, fallback = "0") => (String(v) === "1" || v === true ? "1" : v === undefined || v === null ? fallback : "0");
+
+const intFlag = (v, fallback = 0) =>
+  String(v) === "1" || v === true ? 1 : v === undefined || v === null ? fallback : 0;
+
+const slugifyName = (text) =>
+  slugify(String(text || ""), { lower: true, strict: true }).slice(0, 180);
+
+const uniqueEstimatorSlug = async (text, exceptLegacyId = null) => {
+  const base = slugifyName(text) || "estimator";
+  let slug = base;
+  let n = 2;
+  while (true) {
+    const clash = await Estimator.findOne({
+      estimator_slug: slug,
+      ...(exceptLegacyId === null ? {} : { legacy_id: { $ne: exceptLegacyId } }),
+    }).lean();
+    if (!clash) return slug;
+    slug = base + "-" + n;
+    n += 1;
+  }
+};
 
 const normaliseAnswers = (answers) =>
   (Array.isArray(answers) ? answers : [])
@@ -23,6 +46,8 @@ const normaliseAnswers = (answers) =>
         a.percentage === null || a.percentage === undefined || a.percentage === ""
           ? null
           : String(a.percentage),
+      // The open-ended option ("4+", "40+") the visitor can type a value against.
+      other: flag(a.other),
     }));
 
 const serviceNamesFor = async (estimator) => {
@@ -64,6 +89,8 @@ const listEstimators = async (req, res) => {
     estimators: estimators.map((e) => ({
       id: e.legacy_id,
       estimator_name: e.estimator_name,
+      estimator_slug: e.estimator_slug,
+      isLive: e.isLive,
       base_cost: e.base_cost,
       status: e.status,
       currency: byCurrency.get(e.currency) || null,
@@ -110,14 +137,28 @@ const getEstimator = async (req, res) => {
     estimator: {
       id: estimator.legacy_id,
       estimator_name: estimator.estimator_name,
+      estimator_slug: estimator.estimator_slug,
       base_cost: estimator.base_cost,
       base_ques: estimator.base_ques,
       base_details: estimator.base_details,
       status: estimator.status,
+      isLive: estimator.isLive,
+      selectedPage: estimator.selectedPage,
       currency_id: estimator.currency,
       currency: currency ? { id: currency.legacy_id, name: currency.name, symbol: currency.symbol } : null,
       service_id: estimator.service_id,
       deleted_at: estimator.deleted_at,
+    },
+    page: {
+      meta_title: estimator.meta_title,
+      meta_keyword: estimator.meta_keyword,
+      meta_description: estimator.meta_description,
+      meta_tag: estimator.meta_tag,
+      meta_image: estimator.meta_image,
+      isindex: estimator.isindex,
+      short_description: estimator.short_description,
+      additional_script: estimator.additional_script,
+      page_view: estimator.page_view,
     },
     services: services.map((s) => ({ id: s.legacy_id, service_name: s.service_name })),
     questions: questions.map((q) => ({
@@ -127,6 +168,7 @@ const getEstimator = async (req, res) => {
       answers: q.answers,
       multi_select: q.multi_select,
       require_single_select: q.require_single_select,
+      input_field: q.input_field,
       order: q.order,
     })),
     result: result
@@ -141,7 +183,8 @@ const getEstimator = async (req, res) => {
 
 /** POST /api/estimator - create, optionally with its services in one go. */
 const createEstimator = async (req, res) => {
-  const { estimator_name, currency, base_cost, status, service_names } = req.body || {};
+  const { estimator_name, estimator_slug, currency, base_cost, status, isLive, service_names } =
+    req.body || {};
   if (!estimator_name || !String(estimator_name).trim()) {
     return res.status(400).json({ message: "An estimator name is required" });
   }
@@ -161,12 +204,15 @@ const createEstimator = async (req, res) => {
   }
 
   const legacy_id = await nextLegacyId(COUNTERS.ESTIMATOR);
+  const name = String(estimator_name).trim();
   const estimator = await Estimator.create({
     legacy_id,
-    estimator_name: String(estimator_name).trim(),
+    estimator_name: name,
+    estimator_slug: await uniqueEstimatorSlug(estimator_slug || name),
     currency: Number(currency),
     base_cost: base_cost === undefined || base_cost === null ? "0" : String(base_cost),
     status: flag(status, "1"),
+    isLive: intFlag(isLive, 0),
     service_id: serviceIds,
   });
 
@@ -176,7 +222,10 @@ const createEstimator = async (req, res) => {
 /** PUT /api/estimator/:id */
 const updateEstimator = async (req, res) => {
   const id = Number(req.params.id);
-  const { estimator_name, currency, base_cost, status, base_ques, base_details } = req.body || {};
+  const {
+    estimator_name, estimator_slug, currency, base_cost, status,
+    base_ques, base_details, isLive, selectedPage,
+  } = req.body || {};
 
   const update = {};
   if (estimator_name !== undefined) update.estimator_name = String(estimator_name).trim();
@@ -185,11 +234,20 @@ const updateEstimator = async (req, res) => {
   if (status !== undefined) update.status = flag(status, "1");
   if (base_ques !== undefined) update.base_ques = base_ques;
   if (base_details !== undefined) update.base_details = base_details;
+  if (isLive !== undefined) update.isLive = intFlag(isLive, 0);
+  if (selectedPage !== undefined && selectedPage !== null && selectedPage !== "") {
+    update.selectedPage = Number(selectedPage);
+  }
+
+  if (estimator_slug !== undefined) {
+    const wanted = trimOrNull(estimator_slug) || update.estimator_name || null;
+    update.estimator_slug = wanted ? await uniqueEstimatorSlug(wanted, id) : null;
+  }
 
   const estimator = await Estimator.findOneAndUpdate({ legacy_id: id }, update, { new: true });
   if (!estimator) return res.status(404).json({ message: "Estimator not found" });
 
-  res.json({ id: estimator.legacy_id });
+  res.json({ id: estimator.legacy_id, estimator_slug: estimator.estimator_slug });
 };
 
 const deleteEstimator = async (req, res) => {
@@ -214,10 +272,20 @@ const saveQuestions = async (req, res) => {
 
   const incoming = Array.isArray(req.body?.questions) ? req.body.questions : [];
 
+  let baseChanged = false;
   if (req.body?.base_cost !== undefined) {
     estimator.base_cost = String(req.body.base_cost);
-    await estimator.save();
+    baseChanged = true;
   }
+  if (req.body?.base_ques !== undefined) {
+    estimator.base_ques = trimOrNull(req.body.base_ques);
+    baseChanged = true;
+  }
+  if (req.body?.base_details !== undefined) {
+    estimator.base_details = trimOrNull(req.body.base_details);
+    baseChanged = true;
+  }
+  if (baseChanged) await estimator.save();
 
   const existing = await EstimatorQuestion.find({ estimator_id: id, deleted_at: null }).lean();
   const existingIds = existing.map((q) => q.legacy_id);
@@ -242,6 +310,7 @@ const saveQuestions = async (req, res) => {
       answers: normaliseAnswers(q.answers),
       multi_select: flag(q.multi_select),
       require_single_select: flag(q.require_single_select),
+      input_field: flag(q.input_field),
       priority: 1,
       // Position in the submitted array is the source of truth for order.
       order: String(q.order ?? i + 1),
@@ -289,6 +358,28 @@ const saveResult = async (req, res) => {
   }
 
   res.json({ message: "Result page saved" });
+};
+
+/* --------------------------------------------------- landing page + SEO -- */
+
+const savePageContent = async (req, res) => {
+  const id = Number(req.params.id);
+  const body = req.body || {};
+
+  const update = {};
+  for (const key of [
+    "meta_title", "meta_keyword", "meta_description",
+    "meta_tag", "meta_image", "short_description", "additional_script",
+  ]) {
+    if (body[key] !== undefined) update[key] = trimOrNull(body[key]);
+  }
+  if (body.isindex !== undefined) update.isindex = intFlag(body.isindex, 0);
+  if (body.page_view !== undefined) update.page_view = normalisePageView(body.page_view);
+
+  const estimator = await Estimator.findOneAndUpdate({ legacy_id: id }, update, { new: true });
+  if (!estimator) return res.status(404).json({ message: "Estimator not found" });
+
+  res.json({ message: "Landing page saved" });
 };
 
 /* ------------------------------------------------------------- responses -- */
@@ -393,6 +484,7 @@ module.exports = {
   deleteEstimator,
   saveQuestions,
   saveResult,
+  savePageContent,
   listResponses,
   getResponse,
   deleteResponse,

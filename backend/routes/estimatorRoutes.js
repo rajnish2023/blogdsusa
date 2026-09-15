@@ -8,6 +8,7 @@ const {
   deleteEstimator,
   saveQuestions,
   saveResult,
+  savePageContent,
   listResponses,
   getResponse,
   deleteResponse,
@@ -35,6 +36,7 @@ router.post("/", authorize("estimator:create"), createEstimator);
 router.get("/:id/responses", authorize("estimator:responses"), listResponses);
 router.put("/:id/questions", authorize("estimator:edit"), saveQuestions);
 router.put("/:id/result", authorize("estimator:edit"), saveResult);
+router.put("/:id/page", authorize("estimator:edit"), savePageContent);
 
 router.get("/:id", authorize("estimator:view"), getEstimator);
 router.put("/:id", authorize("estimator:edit"), updateEstimator);

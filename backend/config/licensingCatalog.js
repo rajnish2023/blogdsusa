@@ -1,14 +1,13 @@
 const DEFAULT_PRICING = {
   USD: {
     code: "USD", symbol: "$", verified: "August 2026", trusted: true,
-    countries: ["US"], isDefault: false,
+    countries: ["US"], isDefault: true,
     bc: { essentials: 80, premium: 110, team: 8, device: 45 },
     fo: { base: 210, premiumBase: 300, attach: 30, activity: 50, team: 8, device: 75 },
   },
   GBP: {
     code: "GBP", symbol: "£", verified: "placeholder", trusted: false,
-    // Dynamics Square is a UK business, so GBP is the fallback for the world.
-    countries: ["GB", "IE"], isDefault: true,
+    countries: ["GB", "IE"], isDefault: false,
     bc: { essentials: 67.8, premium: 93.2, team: 6.8, device: 38.1 },
     fo: { base: 178, premiumBase: 254.2, attach: 25.4, activity: 42.4, team: 6.8, device: 63.6 },
   },

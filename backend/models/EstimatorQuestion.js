@@ -10,6 +10,7 @@ const answerSchema = new mongoose.Schema(
     max:        { type: String, default: null },
     cost:       { type: String, default: null },
     percentage: { type: String, default: null },
+    other:      { type: String, enum: ["0", "1"], default: "0" },
   },
   { _id: false }
 );
