@@ -312,9 +312,9 @@ export default function BlogEditorPage() {
           {/* Preview Button: Only show if it's saved (isEdit) and status is draft */}
           {isEdit && status === "draft" && (
             <a
-              href={`${"https://www.dynamicssquare.co.uk"}/blog/preview/${form.slug}`}
+              href={`${"https://www.dynamicssquare.com"}/blog/preview/${form.slug}`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener noreferrer "
               className="btn-secondary text-xs flex items-center gap-1"
             >
               <Eye size={14} />
