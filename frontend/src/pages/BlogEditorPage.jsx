@@ -66,6 +66,7 @@ export default function BlogEditorPage() {
     tags: [],
     featuredImage: null,
     author: user?.id || user?._id || "",
+    reviewedBy: "",
     schemaMarkup: [],
     faqs: [],
     seo: emptySeo,
@@ -110,6 +111,7 @@ export default function BlogEditorPage() {
         tags: blog.tags || [],
         featuredImage: blog.featuredImage?.url ? blog.featuredImage : null,
         author: blog.author?._id || blog.author?.id || "",
+        reviewedBy: blog.reviewedBy?._id || blog.reviewedBy?.id || "",
         schemaMarkup: blog.schemaMarkup || [],
         faqs: blog.faqs || [],
         seo: { metaTitle: blog.seo?.metaTitle || "", metaDescription: blog.seo?.metaDescription || "", focusKeyword: blog.seo?.focusKeyword || "" },
@@ -171,6 +173,8 @@ export default function BlogEditorPage() {
           seo: currentForm.seo,
           schemaMarkup: currentForm.schemaMarkup,
           faqs: currentForm.faqs,
+          author: currentForm.author,
+          reviewedBy: currentForm.reviewedBy,
           status: "draft",
         };
 
@@ -462,6 +466,20 @@ export default function BlogEditorPage() {
                   onChange={(author) => setForm((f) => ({ ...f, author }))}
                 />
                 <p className="mt-2 text-[10px] text-muted">Reassigning takes effect the next time you save.</p>
+              </div>
+            )}
+
+            {/* Reviewed By */}
+            {canReassignAuthor && authors.length > 0 && (
+              <div className="rounded-2xl border border-paper-line bg-paper-card p-4 shadow-card">
+                <label className="mb-1.5 block text-xs font-semibold text-muted uppercase tracking-wider">Reviewed By</label>
+                <AuthorSelect
+                  authors={[{ id: "", name: "No Reviewer", designation: "None", avatarColor: "#cccccc" }, ...authors]}
+                  value={form.reviewedBy}
+                  currentAuthor={authors.find(a => (a.id === form.reviewedBy || a._id === form.reviewedBy)) || { name: "No Reviewer" }}
+                  onChange={(reviewedBy) => setForm((f) => ({ ...f, reviewedBy }))}
+                />
+                <p className="mt-2 text-[10px] text-muted">Select an author who reviewed this post.</p>
               </div>
             )}
 
