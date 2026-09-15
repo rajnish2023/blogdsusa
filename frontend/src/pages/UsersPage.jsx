@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Search, UserPlus } from "lucide-react";
 import UserTable from "../components/Users/UserTable";
 import RolesList from "../components/Users/RolesList";
-import InviteUserModal from "../components/Users/InviteUserModal";
-import EditUserModal from "../components/Users/EditUserModal";
+import UserFormModal from "../components/Users/UserFormModal";
 import RoleFormModal from "../components/Users/RoleFormModal";
 import ConfirmDialog from "../components/Shared/ConfirmDialog";
 import Toast from "../components/Shared/Toast";
@@ -210,11 +209,11 @@ export default function UsersPage() {
       )}
 
       {showInvite && (
-        <InviteUserModal roles={roles} onClose={() => setShowInvite(false)} onSubmit={handleInvite} />
+        <UserFormModal mode="create" roles={roles} onClose={() => setShowInvite(false)} onSubmit={handleInvite} />
       )}
 
       {editingUser && (
-        <EditUserModal user={editingUser} roles={roles} onClose={() => setEditingUser(null)} onSubmit={handleEditUser} />
+        <UserFormModal mode="edit" user={editingUser} roles={roles} onClose={() => setEditingUser(null)} onSubmit={handleEditUser} />
       )}
 
       {statusTarget && (
