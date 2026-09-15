@@ -36,6 +36,7 @@ const BlogSchema = new mongoose.Schema(
 
     status: { type: String, enum: ["draft", "published"], default: "draft" },
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     publishedAt: { type: Date },
     readingTimeMinutes: { type: Number, default: 1 },
     views: { type: Number, default: 0, index: true },
