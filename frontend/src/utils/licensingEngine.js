@@ -37,10 +37,17 @@ export function resolveVerdict(catalog, input) {
   const platform = beyondDrivers.length || scaleEscalation.length ? "fo" : "bc";
   const tier = premiumDrivers.length ? "premium" : "essentials";
 
+  const foMinSeats = catalog?.foMinSeats ?? 20;
+  const foMinimumApplied = platform === "fo" && fullUsers > 0 && fullUsers < foMinSeats;
+  const billedFullUsers = foMinimumApplied ? foMinSeats : fullUsers;
+
   return {
     gated: true,
     platform,
     tier: platform === "bc" ? tier : null,
+    foMinSeats,
+    foMinimumApplied,
+    billedFullUsers,
     platformLabel:
       platform === "fo"
         ? "Finance & Operations"
@@ -88,6 +95,7 @@ export function calculate(catalog, p, input, lead = {}) {
   const tier = premiumDrivers.length ? "premium" : "essentials";
 
   const lines = [];
+  let foMinimumApplied = false;
 
   if (platform === "bc") {
     const seat = p.bc[tier];
@@ -109,14 +117,21 @@ export function calculate(catalog, p, input, lead = {}) {
       chosen.some((c) => SCM_FORCING.includes(c.id));
     const base = p.fo.base;
     const seat = needsSCM ? round2(base + p.fo.attach) : base;
-    if (fullUsers > 0)
+    if (fullUsers > 0) {
+      foMinimumApplied = fullUsers < FO_MIN_SEATS;
+      const billed = Math.max(fullUsers, FO_MIN_SEATS);
       lines.push({
         k: "full",
-        qty: fullUsers,
+        qty: billed,
         label: needsSCM ? "Finance + Supply Chain Management" : "Dynamics 365 Finance",
-        sub: needsSCM ? `Base ${p.symbol}${fmt(base)} + attach ${p.symbol}${fmt(p.fo.attach)}` : "Full user",
+        sub: foMinimumApplied
+          ? `${FO_MIN_SEATS} full-user minimum (you entered ${fullUsers})`
+          : needsSCM
+          ? `Base ${p.symbol}${fmt(base)} + attach ${p.symbol}${fmt(p.fo.attach)}`
+          : "Full user",
         rate: seat,
       });
+    }
     if (activityUsers > 0)
       lines.push({ k: "activity", qty: activityUsers, label: "Operations Activity", sub: "Single-function operational access", rate: p.fo.activity });
     if (teamUsers > 0)
@@ -150,6 +165,8 @@ export function calculate(catalog, p, input, lead = {}) {
     monthly,
     annual,
     threeYear,
+    foMinSeats: FO_MIN_SEATS,
+    foMinimumApplied,
     premiumDrivers,
     beyondDrivers,
     extensions,

@@ -92,15 +92,20 @@ const resolveVerdict = (rawInput, ctx) => {
   };
 };
 
-/* Everything a gated visitor is allowed to see: the verdict, nothing priced. */
 const buildLockedModel = (rawInput, ctx) => {
-  const v = resolveVerdict(rawInput, ctx);
+  const cx = makeCtx(ctx);
+  const v = resolveVerdict(rawInput, cx);
+  const foMinimumApplied =
+    v.platform === "fo" && v.input.fullUsers > 0 && v.input.fullUsers < cx.foMinSeats;
   return {
     gated: true,
     input: v.input,
     platform: v.platform,
     platformLabel: v.platformLabel,
     tier: v.platform === "bc" ? v.tier : null,
+    foMinSeats: cx.foMinSeats,
+    foMinimumApplied,
+    billedFullUsers: foMinimumApplied ? cx.foMinSeats : v.input.fullUsers,
   };
 };
 
@@ -111,6 +116,7 @@ const calculate = (rawInput, p, lead = {}, ctx) => {
   const { fullUsers, teamUsers, deviceUsers, activityUsers, entities } = input;
 
   const lines = [];
+  let foMinimumApplied = false;
 
   if (platform === "bc") {
     const seat = p.bc[tier];
@@ -132,14 +138,22 @@ const calculate = (rawInput, p, lead = {}, ctx) => {
       chosen.some((x) => cx.scmForcingCaps.includes(x.id));
     const base = p.fo.base;
     const seat = needsSCM ? round2(base + p.fo.attach) : base;
-    if (fullUsers > 0)
+
+    if (fullUsers > 0) {
+      foMinimumApplied = fullUsers < cx.foMinSeats;
+      const billed = Math.max(fullUsers, cx.foMinSeats);
       lines.push({
         k: "full",
-        qty: fullUsers,
+        qty: billed,
         label: needsSCM ? "Finance + Supply Chain Management" : "Dynamics 365 Finance",
-        sub: needsSCM ? `Base ${p.symbol}${fmt(base)} + attach ${p.symbol}${fmt(p.fo.attach)}` : "Full user",
+        sub: foMinimumApplied
+          ? `${cx.foMinSeats} full-user minimum (you entered ${fullUsers})`
+          : needsSCM
+          ? `Base ${p.symbol}${fmt(base)} + attach ${p.symbol}${fmt(p.fo.attach)}`
+          : "Full user",
         rate: seat,
       });
+    }
     if (activityUsers > 0)
       lines.push({ k: "activity", qty: activityUsers, label: "Operations Activity", sub: "Single-function operational access", rate: p.fo.activity });
     if (teamUsers > 0)
@@ -176,6 +190,8 @@ const calculate = (rawInput, p, lead = {}, ctx) => {
     monthly,
     annual,
     threeYear,
+    foMinSeats: cx.foMinSeats,
+    foMinimumApplied,
     premiumDrivers: premiumDrivers.map((d) => ({ id: d.id, label: d.label })),
     beyondDrivers: beyondDrivers.map((d) => ({ id: d.id, label: d.label, fo: d.fo, app: d.app })),
     extensions: extensions.map((e) => ({ id: e.id, label: e.label })),

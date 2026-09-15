@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 const TIERS = [
   { value: "essentials", label: "Essentials", hint: "Included in Business Central Essentials" },
   { value: "premium", label: "Premium", hint: "Forces BC Premium for every full user" },
-  { value: "addon", label: "Extension", hint: "Separate subscription, quoted separately" },
+  { value: "addon", label: "Add-On", hint: "Separate subscription, quoted separately" },
   { value: "beyond", label: "Finance & Ops", hint: "Escalates the answer to Finance & Operations" },
 ];
 

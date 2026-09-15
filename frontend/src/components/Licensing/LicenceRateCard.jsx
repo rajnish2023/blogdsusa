@@ -8,12 +8,12 @@ export default function LicenceRateCard({ source = "licence-rate-card" }) {
 
   // null until the catalog answers — the server picks from the visitor's country
   const [currency, setCurrency] = useState(null);
-  const [caps, setCaps] = useState(() => new Set(["fin", "sales", "purch", "inv"]));
+  const [caps, setCaps] = useState(() => new Set());
   const [open, setOpen] = useState(() => new Set());
   const [entities, setEntities] = useState(1);
   const [countries, setCountries] = useState(1);
   const [revenue, setRevenue] = useState("5_25");
-  const [fullUsers, setFullUsers] = useState(15);
+  const [fullUsers, setFullUsers] = useState(1);
   const [teamUsers, setTeamUsers] = useState(0);
   const [deviceUsers, setDeviceUsers] = useState(0);
   const [activityUsers, setActivityUsers] = useState(0);
@@ -331,6 +331,14 @@ export default function LicenceRateCard({ source = "licence-rate-card" }) {
               </tbody>
             </table>
 
+            {model.foMinimumApplied && (
+              <p className="stmt-min">
+                Microsoft sells the primary Finance &amp; Operations application with a{" "}
+                {model.foMinSeats} full-user minimum, and it cannot be split across core
+                applications. The statement is priced at that floor.
+              </p>
+            )}
+
             <div className="stmt-totals">
               <div className="tot"><span>{C.statement.perMonth}</span><b>{model.symbol}{fmt(model.monthly)}</b></div>
               <div className="tot lead"><span>{C.statement.perYear}</span><b>{model.symbol}{fmt(annual)}</b></div>
@@ -582,6 +590,8 @@ border-bottom:1px solid rgba(255,255,255,.07)}
 .ext-list li em{flex:none;font-family:var(--mono);font-style:normal;font-size:10.5px;
 letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.4)}
 .ext-note{font-size:11.5px;line-height:1.45;color:rgba(255,255,255,.5);margin:11px 0 0}
+.stmt-min{font-size:11.5px;line-height:1.45;color:#F2B8AE;margin:14px 0 0;
+padding:10px 12px;background:rgba(242,184,174,.09);border-left:2px solid rgba(242,184,174,.5);border-radius:2px}
 .stmt-foot{font-size:11.5px;line-height:1.45;color:rgba(255,255,255,.45);margin:16px 0 0}
 
 /* ---- gated state: the verdict is given away, the money is not ---- */
