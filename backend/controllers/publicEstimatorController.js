@@ -6,6 +6,7 @@ const Currency = require("../models/Currency");
 const Setting = require("../models/Setting");
 const { calculateEstimate } = require("../utils/estimatorEngine");
 const { renderEstimatorEmail } = require("../utils/estimatorMailTemplate");
+const { sendTemplate, htmlRows, esc, titleCase } = require("../utils/mailPortal");
 const { sendEmail } = require("../utils/mailer");
 const { nextLegacyId, COUNTERS } = require("../utils/legacyId");
 
@@ -227,6 +228,59 @@ const sendEstimateEmail = async (responseLegacyId) => {
     subject: "ERP Pricing Report",
     html,
   });
+
+  try {
+    const sym = (currency && currency.symbol) || "";
+    const range =
+      sumMin === sumMax ? `${sym} ${sumMin}` : `${sym} ${sumMin} - ${sym} ${sumMax}`;
+
+    const rows = results
+      .map(
+        (item) => `
+        <tr>
+            <td style='padding:10px;border:1px solid #ddd;'>${esc(item.ques_name ?? "")}</td>
+            <td style='padding:10px;border:1px solid #ddd;'>${esc(item.option ?? "")}</td>
+        </tr>
+    `
+      )
+      .join("");
+
+    const submitData = `
+     <table style='width:100%;border-collapse:collapse;table-layout:fixed;'>
+    <colgroup>
+        <col style='width:50%;'>
+        <col style='width:50%;'>
+    </colgroup>
+    ${rows}
+</table>
+   `;
+
+    const common = {
+      submitData,
+      currencyName: sym,
+      baseCost: String(estimator.base_cost ?? "0"),
+      sumMin: String(sumMin),
+      sumMax: String(sumMax),
+      name: titleCase(response.name),
+      phone: response.phone || "",
+      company: response.company || "",
+      customerEmail: response.email,
+      estimatorName: estimator.estimator_name || `Estimator ${estimator.legacy_id}`,
+      estimateRange: range,
+      reference: String(response.legacy_id),
+      submittedAt: new Date(response.created_at || response.createdAt || Date.now()).toUTCString(),
+    };
+
+    await Promise.all([
+      sendTemplate("estimatorInternal", {
+        ...common,
+        title: `New estimator submission — ${titleCase(response.name)}`,
+      }),
+      sendTemplate("estimatorCustomer", { ...common, email: response.email }),
+    ]);
+  } catch (portalErr) {
+    console.error("[estimator] mail portal send failed:", portalErr.message);
+  }
 
   return { results, sumMin, sumMax };
 };
