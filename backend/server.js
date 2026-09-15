@@ -33,7 +33,7 @@ const app = express();
 
 connectDB();
  
-app.set("trust proxy", true);  
+app.set("trust proxy", 1);  
  
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
@@ -43,8 +43,9 @@ app.use(
         process.env.CLIENT_URL,
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://www.dynamicssquare.com"
       ].filter(Boolean);
-      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      // Allow requests with no origin 
       if (!origin || allowed.includes(origin)) return callback(null, true);
       callback(new Error(`CORS blocked: ${origin}`));
     },
@@ -86,15 +87,15 @@ app.use("/api/estimator", estimatorRoutes);
 app.use("/api/public/estimators", publicEstimatorRoutes);
 
 // Temporary manual seed route
-const { runSeed } = require("./scripts/seed");
-app.get("/api/seed-database-init", async (req, res) => {
-  try {
-    const msg = await runSeed();
-    res.send(`<h1>${msg}</h1><p>You can now log into the admin panel using your SEED_ADMIN_EMAIL.</p>`);
-  } catch (err) {
-    res.status(500).send(`<h1>Seed Failed</h1><p>${err.message}</p>`);
-  }
-});
+// const { runSeed } = require("./scripts/seed");
+// app.get("/api/seed-database-init", async (req, res) => {
+//   try {
+//     const msg = await runSeed();
+//     res.send(`<h1>${msg}</h1><p>You can now log into the admin panel using your SEED_ADMIN_EMAIL.</p>`);
+//   } catch (err) {
+//     res.status(500).send(`<h1>Seed Failed</h1><p>${err.message}</p>`);
+//   }
+// });
 
 app.get("/api/health", (req, res) => res.json({ status: "ok", pid: process.pid, uptime: process.uptime() }));
  

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Loader2, Save, Send, Pencil, ChevronRight, ChevronDown,
-  PanelRightClose, PanelRightOpen, CheckCircle2, CloudOff,
+  PanelRightClose, PanelRightOpen, CheckCircle2, CloudOff, Eye
 } from "lucide-react";
 import TipTapEditor from "../components/Blog/TipTapEditor";
 import SeoPanel from "../components/Blog/SeoPanel";
@@ -16,14 +16,23 @@ import { fetchBlog, createBlog, updateBlog, setBlogStatus } from "../api/blogApi
 import { fetchCategories } from "../api/categoryApi";
 import { fetchAuthors } from "../api/userApi";
 import { slugify } from "../utils/slugify";
-import { usePermissions } from "../auth/AuthContext";
+import { usePermissions, useAuth } from "../auth/AuthContext";
 
 const emptySeo = { metaTitle: "", metaDescription: "", focusKeyword: "" };
+
+const getISTDateTimeLocal = () => {
+  const d = new Date();
+  // d.getTime() is absolute UTC time. Add 5.5 hours (330 minutes) to shift it to IST.
+  const istOffset = 330 * 60000;
+  const istDate = new Date(d.getTime() + istOffset);
+  return istDate.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+};
 
 export default function BlogEditorPage() {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const { user } = useAuth();
   const can = usePermissions();
   const canPublish = can("blog:publish");
   const canReassignAuthor = can("blog:edit");
@@ -56,10 +65,11 @@ export default function BlogEditorPage() {
     category: "",
     tags: [],
     featuredImage: null,
-    author: "",
+    author: user?.id || user?._id || "",
     schemaMarkup: [],
     faqs: [],
     seo: emptySeo,
+    publishedAt: getISTDateTimeLocal(),
   });
 
   // Keep formRef in sync
@@ -78,36 +88,49 @@ export default function BlogEditorPage() {
     if (canReassignAuthor) fetchAuthors().then(setAuthors).catch(() => {});
   }, [canReassignAuthor]);
 
+  const loadBlog = useCallback(async () => {
+    try {
+      const blog = await fetchBlog(id);
+      
+      // format date for datetime-local input in IST
+      let formattedDate = getISTDateTimeLocal();
+      if (blog.publishedAt) {
+        const d = new Date(blog.publishedAt);
+        const istOffset = 330 * 60000;
+        const istDate = new Date(d.getTime() + istOffset);
+        formattedDate = istDate.toISOString().slice(0, 16);
+      }
+
+      setForm({
+        title: blog.title || "",
+        slug: blog.slug || "",
+        content: blog.content || "",
+        excerpt: blog.excerpt || "",
+        category: blog.category?._id || blog.category?.id || "",
+        tags: blog.tags || [],
+        featuredImage: blog.featuredImage?.url ? blog.featuredImage : null,
+        author: blog.author?._id || blog.author?.id || "",
+        schemaMarkup: blog.schemaMarkup || [],
+        faqs: blog.faqs || [],
+        seo: { metaTitle: blog.seo?.metaTitle || "", metaDescription: blog.seo?.metaDescription || "", focusKeyword: blog.seo?.focusKeyword || "" },
+        publishedAt: formattedDate,
+      });
+      setCurrentAuthor(blog.author);
+      setStatus(blog.status);
+      // We do NOT set slugTouched=true here anymore.
+      // This allows the slug to auto-generate even when editing a post,
+      // unless the user specifically manually edits the slug field.
+    } catch (err) {
+      showToast("Failed to load post", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     if (!isEdit) return;
-    (async () => {
-      try {
-        const blog = await fetchBlog(id);
-        setForm({
-          title: blog.title,
-          slug: blog.slug,
-          content: blog.content,
-          excerpt: blog.excerpt,
-          category: blog.category?._id || "",
-          tags: blog.tags || [],
-          featuredImage: blog.featuredImage?.url ? blog.featuredImage : null,
-          author: blog.author?._id || blog.author?.id || "",
-          schemaMarkup: blog.schemaMarkup || [],
-          faqs: blog.faqs || [],
-          seo: { metaTitle: blog.seo?.metaTitle || "", metaDescription: blog.seo?.metaDescription || "", focusKeyword: blog.seo?.focusKeyword || "" },
-        });
-        setCurrentAuthor(blog.author);
-        setStatus(blog.status);
-        // We do NOT set slugTouched=true here anymore.
-        // This allows the slug to auto-generate even when editing a post,
-        // unless the user specifically manually edits the slug field.
-      } catch (err) {
-        showToast("Failed to load post", "error");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id, isEdit]);
+    loadBlog();
+  }, [isEdit, loadBlog]);
 
   // ─── Auto-draft save (5s debounce after any change) ───
   useEffect(() => {
@@ -186,20 +209,24 @@ export default function BlogEditorPage() {
     setForm((f) => ({ ...f, slug: val }));
   };
 
-  const buildPayload = (targetStatus) => ({
-    title: form.title,
-    slug: form.slug,
-    content: form.content,
-    excerpt: form.excerpt,
-    category: form.category || null,
-    tags: form.tags,
-    featuredImage: form.featuredImage,
-    seo: form.seo,
-    schemaMarkup: form.schemaMarkup,
-    faqs: form.faqs,
-    status: targetStatus,
-    ...(isEdit && canReassignAuthor && form.author ? { author: form.author } : {}),
-  });
+  const buildPayload = (targetStatus) => {
+    let payloadPublishedAt = form.publishedAt;
+    if (form.publishedAt && !form.publishedAt.endsWith("+05:30") && !form.publishedAt.endsWith("Z")) {
+      // Input date is YYYY-MM-DDTHH:mm
+      // Force it to be evaluated as IST timezone
+      payloadPublishedAt = `${form.publishedAt}:00+05:30`;
+    }
+
+    return {
+      title: form.title,
+      slug: form.slug,
+      content: form.content,
+      ...form,
+      status: targetStatus,
+      ...(form.publishedAt ? { publishedAt: payloadPublishedAt } : {}),
+      ...(canReassignAuthor && form.author ? { author: form.author } : {}),
+    };
+  };
 
   const handleSave = async (targetStatus) => {
     if (!form.title.trim()) {
@@ -277,6 +304,20 @@ export default function BlogEditorPage() {
           >
             {sidebarOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
           </button>
+          
+          {/* Preview Button: Only show if it's saved (isEdit) and status is draft */}
+          {isEdit && status === "draft" && (
+            <a
+              href={`${"https://www.dynamicssquare.co.uk"}/blog/preview/${form.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-xs flex items-center gap-1"
+            >
+              <Eye size={14} />
+              Preview
+            </a>
+          )}
+
           <button onClick={() => handleSave("draft")} disabled={saving} className="btn-secondary text-xs disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Save draft
@@ -411,7 +452,7 @@ export default function BlogEditorPage() {
             </div>
 
             {/* Author Reassignment */}
-            {isEdit && canReassignAuthor && authors.length > 0 && (
+            {canReassignAuthor && authors.length > 0 && (
               <div className="rounded-2xl border border-paper-line bg-paper-card p-4 shadow-card">
                 <label className="mb-1.5 block text-xs font-semibold text-muted uppercase tracking-wider">Author</label>
                 <AuthorSelect
@@ -439,6 +480,14 @@ export default function BlogEditorPage() {
                   </option>
                 ))}
               </select>
+
+              <label className="mb-1.5 mt-4 block text-xs font-semibold text-muted uppercase tracking-wider">Publish Date (Optional)</label>
+              <input
+                type="datetime-local"
+                value={form.publishedAt}
+                onChange={(e) => setForm((f) => ({ ...f, publishedAt: e.target.value }))}
+                className="w-full rounded-lg border border-paper-line bg-paper px-3 py-2 text-sm text-ink focus:border-signal"
+              />
 
               <label className="mb-1.5 mt-4 block text-xs font-semibold text-muted uppercase tracking-wider">Tags</label>
               <TagInput tags={form.tags} onChange={(tags) => setForm((f) => ({ ...f, tags }))} />
