@@ -28,10 +28,12 @@ const publicLicensingRoutes = require("./routes/publicLicensingRoutes");
 const estimatorRoutes = require("./routes/estimatorRoutes");
 const publicEstimatorRoutes = require("./routes/publicEstimatorRoutes");
 const { apiLimiter } = require("./middleware/rateLimiter");
+const { startScheduler } = require("./jobs/scheduler");
 
 const app = express();
 
 connectDB();
+startScheduler();
  
 app.set("trust proxy", 1);  
  

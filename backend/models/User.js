@@ -18,7 +18,7 @@ const UserSchema = new mongoose.Schema(
     avatarColor: { type: String, default: "#3355FF" },
     avatarUrl: { type: String, default: "" },
     designation: { type: String, trim: true, maxlength: 100, default: "" }, // set by admin
-    about: { type: String, trim: true, maxlength: 500, default: "" }, // self-editable bio
+    about: { type: String, trim: true, maxlength: 5000, default: "" }, // self-editable bio
     authorSlug: { type: String, trim: true, unique: true, sparse: true },
     socialLinks: {
       linkedin: { type: String, trim: true, default: "" },

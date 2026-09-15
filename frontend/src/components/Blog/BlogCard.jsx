@@ -47,7 +47,12 @@ export default function BlogCard({ post, onDelete, canEdit, canDelete, isSelecte
         {/* Selection Blue Tint */}
         {isSelected && <div className="absolute inset-0 bg-signal/20 pointer-events-none z-10 transition-colors"></div>}
 
-        <span className={`absolute right-2.5 top-2.5 z-20 rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${post.status === "published" ? "bg-success text-white" : "bg-ink/70 text-white"}`}>
+        <span className={`absolute right-2.5 top-2.5 z-20 rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${
+          post.status === "published" ? "bg-success text-white" : 
+          post.status === "scheduled" ? "bg-blue-600 text-white" : 
+          "bg-ink/70 text-white"
+        }`}>
+          {post.status === "scheduled" && <Clock size={10} className="inline mr-0.5 -mt-0.5" />}
           {post.status}
         </span>
       </Link>
@@ -66,6 +71,13 @@ export default function BlogCard({ post, onDelete, canEdit, canDelete, isSelecte
           <h3 className="font-display text-sm font-semibold leading-snug text-ink line-clamp-2 hover:text-signal">{post.title}</h3>
         </Link>
 
+        {/* Scheduled date info */}
+        {post.status === "scheduled" && post.scheduledAt && (
+          <p className="flex items-center gap-1 text-[11px] text-blue-600 font-medium">
+            <Clock size={11} />
+            Publishes {new Date(post.scheduledAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST
+          </p>
+        )}
 
         <div className="mt-auto flex items-center justify-between pt-2">
           <div className="flex items-center gap-2">

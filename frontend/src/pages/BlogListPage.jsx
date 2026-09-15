@@ -20,7 +20,7 @@ export default function BlogListPage() {
 
   const [posts, setPosts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [counts, setCounts] = useState({ all: 0, draft: 0, published: 0 });
+  const [counts, setCounts] = useState({ all: 0, draft: 0, published: 0, scheduled: 0 });
   const [loading, setLoading] = useState(true);
 
   // Pagination states
@@ -143,6 +143,7 @@ export default function BlogListPage() {
           {[
             { key: "", label: "All", count: counts.all },
             { key: "published", label: "Published", count: counts.published },
+            { key: "scheduled", label: "Scheduled", count: counts.scheduled },
             { key: "draft", label: "Draft", count: counts.draft },
           ].map((f) => (
             <button

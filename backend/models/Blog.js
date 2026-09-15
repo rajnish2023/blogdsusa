@@ -34,9 +34,10 @@ const BlogSchema = new mongoose.Schema(
       },
     ],
 
-    status: { type: String, enum: ["draft", "published"], default: "draft" },
+    status: { type: String, enum: ["draft", "published", "scheduled"], default: "draft" },
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    scheduledAt: { type: Date },
     publishedAt: { type: Date },
     readingTimeMinutes: { type: Number, default: 1 },
     views: { type: Number, default: 0, index: true },
@@ -53,5 +54,6 @@ const BlogSchema = new mongoose.Schema(
 
 BlogSchema.index({ title: "text", content: "text" });
 BlogSchema.index({ status: 1, createdAt: -1 });
+BlogSchema.index({ status: 1, scheduledAt: 1 });
 
 module.exports = mongoose.model("Blog", BlogSchema);
