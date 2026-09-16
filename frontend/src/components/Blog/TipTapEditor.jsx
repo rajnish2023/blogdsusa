@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node, Extension, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
@@ -249,6 +249,105 @@ function TableDropdown({ editor, disabled, inTable }) {
   );
 }
 
+function LinkDropdown({ editor, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const [isNofollow, setIsNofollow] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      const attrs = editor.getAttributes("link");
+      setUrl(attrs.href || "");
+      setIsNofollow(attrs.rel === "nofollow");
+    }
+  }, [open, editor]);
+
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (open) document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  useEffect(() => {
+    if (!editor?.view?.dom) return;
+    const dom = editor.view.dom;
+    const handler = (e) => {
+      if (e.detail?.action === "open-link" && !disabled) {
+        setOpen(true);
+      }
+    };
+    dom.addEventListener("tiptap-link-shortcut", handler);
+    return () => dom.removeEventListener("tiptap-link-shortcut", handler);
+  }, [editor, disabled]);
+
+  const applyLink = () => {
+    if (!url.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    } else {
+      let finalUrl = url.trim();
+      if (!/^https?:\/\//.test(finalUrl) && !/^mailto:/.test(finalUrl) && !finalUrl.startsWith("/") && !finalUrl.startsWith("#")) {
+        finalUrl = "https://" + finalUrl;
+      }
+      editor.chain().focus().extendMarkRange("link").setLink({ 
+        href: finalUrl, 
+        rel: isNofollow ? "nofollow" : null,
+        target: "_blank" 
+      }).run();
+    }
+    setOpen(false);
+  };
+
+  const removeLink = () => {
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative flex" ref={ref}>
+      <ToolbarButton
+        title="Link (Ctrl+K)"
+        active={editor.isActive("link") || open}
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+      >
+        <LinkIcon size={15} />
+      </ToolbarButton>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-50 flex flex-col gap-3 rounded-lg border border-paper-line bg-paper-card p-3 shadow-xl w-64">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Insert Link</div>
+          <input 
+            type="text" 
+            placeholder="https://..."
+            value={url} 
+            onChange={e => setUrl(e.target.value)} 
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); applyLink(); } }}
+            autoFocus
+            className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" 
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-2 text-xs text-ink cursor-pointer hover:text-signal transition-colors">
+              <input type="checkbox" checked={isNofollow} onChange={e => setIsNofollow(e.target.checked)} className="rounded border-paper-line text-signal focus:ring-signal" />
+              Nofollow (SEO)
+            </label>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={applyLink} className="flex-1 rounded-md bg-signal py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity">
+              Apply
+            </button>
+            {editor.isActive("link") && (
+              <button onClick={removeLink} className="rounded-md border border-paper-line px-2.5 py-1.5 text-xs font-semibold text-danger hover:bg-danger/5 transition-colors">
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const emptySeo = { metaTitle: "", metaDescription: "", focusKeyword: "" };
 
 // Helper to precisely format TipTap HTML for the database/frontend output
@@ -320,8 +419,8 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
       StarterKit.configure({
         heading: isMinimal ? false : { levels: [1, 2, 3, 4, 5, 6] },
         blockquote: isMinimal ? false : {},
-        bulletList: isMinimal ? false : {},
-        orderedList: isMinimal ? false : {},
+        bulletList: {}, // Always allow bullet lists
+        orderedList: {}, // Always allow ordered lists
         codeBlock: isMinimal ? false : {},
       }),
       Underline,
@@ -376,11 +475,29 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
                   parseHTML: (el) => el.getAttribute("rel") || null,
                   renderHTML: (attrs) => attrs.rel ? { rel: attrs.rel } : {},
                 },
+                target: {
+                  default: null,
+                  parseHTML: (el) => el.getAttribute("target") || null,
+                  renderHTML: (attrs) => attrs.target ? { target: attrs.target } : {},
+                },
               },
             },
           ];
         },
       },
+      Extension.create({
+        name: 'customShortcuts',
+        addKeyboardShortcuts() {
+          return {
+            'Mod-k': () => {
+              if (this.editor.view.dom) {
+                this.editor.view.dom.dispatchEvent(new CustomEvent('tiptap-link-shortcut', { detail: { action: 'open-link' } }));
+              }
+              return true;
+            },
+          };
+        },
+      }),
     ],
     content: value || "",
     onUpdate: ({ editor: ed }) => {
@@ -420,17 +537,6 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
   }, [isFullscreen]);
 
   if (!editor) return null;
-
-  const setLink = () => {
-    const previous = editor.getAttributes("link").href;
-    const url = window.prompt("Link URL", previous || "https://");
-    if (url === null) return;
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-  };
 
   const insertImageByUrl = () => {
     const url = window.prompt("Image URL", "https://");
@@ -545,22 +651,19 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
         <ToolbarDivider />
 
         {/* Lists, quote */}
-        {!isMinimal && (
-          <>
-            <ToolbarButton title="Bullet list" active={editor.isActive("bulletList")} disabled={codeView} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-              <List size={15} />
-            </ToolbarButton>
-            <ToolbarButton title="Numbered list" active={editor.isActive("orderedList")} disabled={codeView} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-              <ListOrdered size={15} />
-            </ToolbarButton>
-            <ToolbarButton title="Quote" active={editor.isActive("blockquote")} disabled={codeView} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-              <Quote size={15} />
-            </ToolbarButton>
-          </>
-        )}
-        <ToolbarButton title="Link" active={editor.isActive("link")} disabled={codeView} onClick={setLink}>
-          <LinkIcon size={15} />
+        <ToolbarButton title="Bullet list" active={editor.isActive("bulletList")} disabled={codeView} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <List size={15} />
         </ToolbarButton>
+        <ToolbarButton title="Numbered list" active={editor.isActive("orderedList")} disabled={codeView} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+          <ListOrdered size={15} />
+        </ToolbarButton>
+
+        {!isMinimal && (
+          <ToolbarButton title="Quote" active={editor.isActive("blockquote")} disabled={codeView} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+            <Quote size={15} />
+          </ToolbarButton>
+        )}
+        <LinkDropdown editor={editor} disabled={codeView} />
 
         {/* Media & table */}
         {!isMinimal && (
