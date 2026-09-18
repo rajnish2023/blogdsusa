@@ -399,7 +399,8 @@ function CtaDropdown({ editor, disabled }) {
     if (finalUrl && !/^https?:\/\//.test(finalUrl) && !/^mailto:/.test(finalUrl) && !finalUrl.startsWith("/") && !finalUrl.startsWith("#")) {
       finalUrl = "https://" + finalUrl;
     }
-    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${title || "Call to Action"}</h4><p class="blog-cta__desc">${desc.replace(/\n/g, "<br/>")}</p><a href="${finalUrl || "#"}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${btnText || "Click Here"}</a></div>`;
+    const buttonHtml = finalUrl ? `<a href="${finalUrl}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${btnText || "Click Here"}</a>` : "";
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${title || "Call to Action"}</h4><p class="blog-cta__desc">${desc.replace(/\n/g, "<br/>")}</p>${buttonHtml}</div>`;
     editor.chain().focus().insertContent(html).run();
     setOpen(false);
   };
@@ -539,7 +540,8 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
     if (finalUrl && !/^https?:\/\//.test(finalUrl) && !/^mailto:/.test(finalUrl) && !finalUrl.startsWith("/") && !finalUrl.startsWith("#")) {
       finalUrl = "https://" + finalUrl;
     }
-    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${ctaModal.title || "Call to Action"}</h4><p class="blog-cta__desc">${ctaModal.desc.replace(/\n/g, "<br/>")}</p><a href="${finalUrl || "#"}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${ctaModal.btnText || "Click Here"}</a></div>`;
+    const buttonHtml = finalUrl ? `<a href="${finalUrl}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${ctaModal.btnText || "Click Here"}</a>` : "";
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${ctaModal.title || "Call to Action"}</h4><p class="blog-cta__desc">${ctaModal.desc.replace(/\n/g, "<br/>")}</p>${buttonHtml}</div>`;
     editor.chain().focus().deleteNode("genericBlock").insertContent(html).run();
     setCtaModal({ open: false, title: "", desc: "", btnText: "", url: "" });
   };
