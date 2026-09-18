@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import { Node, Extension, mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -16,7 +16,7 @@ import {
   List, ListOrdered, Quote, Pilcrow,
   Link as LinkIcon, Undo, Redo, Eraser, Code, ImagePlus, Upload,
   Table as TableIcon, Rows3, Columns3, Trash2, FileCode2, Loader2,
-  Maximize, Minimize,
+  Maximize, Minimize, Megaphone
 } from "lucide-react";
 import { uploadMedia } from "../../api/galleryApi";
 
@@ -27,6 +27,20 @@ const GenericBlock = Node.create({
   name: "genericBlock",
   group: "block",
   content: "block+", // allows paragraphs, headings, etc. inside
+  addAttributes() {
+    return {
+      class: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("class"),
+        renderHTML: (attrs) => attrs.class ? { class: attrs.class } : {},
+      },
+      style: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("style"),
+        renderHTML: (attrs) => attrs.style ? { style: attrs.style } : {},
+      }
+    };
+  },
   parseHTML() {
     return [{ tag: "div" }, { tag: "section" }, { tag: "article" }, { tag: "aside" }, { tag: "figure" }, { tag: "figcaption" }];
   },
@@ -40,6 +54,20 @@ const GenericInline = Node.create({
   group: "inline",
   inline: true,
   content: "inline*",
+  addAttributes() {
+    return {
+      class: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("class"),
+        renderHTML: (attrs) => attrs.class ? { class: attrs.class } : {},
+      },
+      style: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("style"),
+        renderHTML: (attrs) => attrs.style ? { style: attrs.style } : {},
+      }
+    };
+  },
   parseHTML() {
     return [{ tag: "span" }];
   },
@@ -348,6 +376,72 @@ function LinkDropdown({ editor, disabled }) {
   );
 }
 
+
+function CtaDropdown({ editor, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [btnText, setBtnText] = useState("");
+  const [url, setUrl] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (open) {
+      setTitle(""); setDesc(""); setBtnText(""); setUrl("");
+      document.addEventListener("mousedown", close);
+    }
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const insertCta = () => {
+    let finalUrl = url.trim();
+    if (finalUrl && !/^https?:\/\//.test(finalUrl) && !/^mailto:/.test(finalUrl) && !finalUrl.startsWith("/") && !finalUrl.startsWith("#")) {
+      finalUrl = "https://" + finalUrl;
+    }
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${title || "Call to Action"}</h4><p class="blog-cta__desc">${desc.replace(/\n/g, "<br/>")}</p><a href="${finalUrl || "#"}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${btnText || "Click Here"}</a></div>`;
+    editor.chain().focus().insertContent(html).run();
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative flex" ref={ref}>
+      <ToolbarButton title="Insert Call to Action" active={open} disabled={disabled} onClick={() => setOpen(o => !o)}>
+        <Megaphone size={15} />
+      </ToolbarButton>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1.5 z-[9999] flex flex-col gap-3 rounded-lg border border-paper-line bg-paper-card p-4 shadow-xl w-[22rem]">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Insert Call to Action</div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-muted uppercase">Heading</label>
+            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-muted uppercase">Description</label>
+            <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none resize-none" />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-[10px] font-semibold text-muted uppercase">Button Text</label>
+              <input type="text" value={btnText} onChange={e => setBtnText(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
+            </div>
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-[10px] font-semibold text-muted uppercase">Link URL</label>
+              <input type="text" value={url} onChange={e => setUrl(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button onClick={insertCta} className="flex-1 rounded-md bg-signal py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity">Insert CTA Block</button>
+            <button onClick={() => setOpen(false)} className="rounded-md border border-paper-line px-2.5 py-1.5 text-xs font-semibold text-muted hover:bg-paper transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const emptySeo = { metaTitle: "", metaDescription: "", focusKeyword: "" };
 
 // Helper to precisely format TipTap HTML for the database/frontend output
@@ -406,13 +500,51 @@ const cleanTipTapHTML = (html) => {
 
 export default function TipTapEditor({ value, onChange, placeholder = "Write your post...", variant = "default", fullHeight = false }) {
   const fileInputRef = useRef(null);
-  const rawHtmlRef = useRef(null); // stores last raw code-view HTML as source of truth
+  const rawHtmlRef = useRef(null);
+  const ctaPosRef = useRef(null); // snapshot cursor pos when BubbleMenu shows
   const [uploading, setUploading] = useState(false);
   const [codeView, setCodeView] = useState(false);
   const [codeDraft, setCodeDraft] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [ctaModal, setCtaModal] = useState({ open: false, title: "", desc: "", btnText: "", url: "" });
 
   const isMinimal = variant === "minimal";
+
+  const openCtaEdit = () => {
+    if (!editor || ctaPosRef.current === null) return;
+    const from = ctaPosRef.current;
+    let nodePos = null;
+    editor.state.doc.nodesBetween(0, editor.state.doc.content.size, (node, pos) => {
+      if (nodePos !== null) return false;
+      if (node.type.name === "genericBlock" && (node.attrs?.class || "").includes("blog-cta")) {
+        if (pos <= from && pos + node.nodeSize >= from) nodePos = pos;
+      }
+    });
+    if (nodePos === null) return;
+    const domNode = editor.view.nodeDOM(nodePos);
+    const el = domNode instanceof HTMLElement
+      ? (domNode.classList.contains("blog-cta") ? domNode : domNode.querySelector(".blog-cta"))
+      : null;
+    if (!el) return;
+    const title = el.querySelector("h4")?.textContent?.trim() || "";
+    const allPs = Array.from(el.querySelectorAll("p"));
+    const descEl = allPs.find(p => !p.querySelector("a"));
+    const desc = descEl ? descEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/(<([^>]+)>)/gi, "").trim() : "";
+    const aTag = el.querySelector("a");
+    setCtaModal({ open: true, title, desc, btnText: aTag?.textContent?.trim() || "", url: aTag?.getAttribute("href") || "" });
+  };
+
+  const saveCtaEdit = () => {
+    let finalUrl = ctaModal.url.trim();
+    if (finalUrl && !/^https?:\/\//.test(finalUrl) && !/^mailto:/.test(finalUrl) && !finalUrl.startsWith("/") && !finalUrl.startsWith("#")) {
+      finalUrl = "https://" + finalUrl;
+    }
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${ctaModal.title || "Call to Action"}</h4><p class="blog-cta__desc">${ctaModal.desc.replace(/\n/g, "<br/>")}</p><a href="${finalUrl || "#"}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${ctaModal.btnText || "Click Here"}</a></div>`;
+    editor.chain().focus().deleteNode("genericBlock").insertContent(html).run();
+    setCtaModal({ open: false, title: "", desc: "", btnText: "", url: "" });
+  };
+
+
 
   const editor = useEditor({
     extensions: [
@@ -664,6 +796,7 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
           </ToolbarButton>
         )}
         <LinkDropdown editor={editor} disabled={codeView} />
+        <CtaDropdown editor={editor} disabled={codeView} />
 
         {/* Media & table */}
         {!isMinimal && (
@@ -749,6 +882,35 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
         <div className={`flex flex-col ${fullHeight || isFullscreen ? "flex-1 overflow-hidden" : ""}`}>
           <div className={fullHeight || isFullscreen ? "flex-1 overflow-y-auto" : ""}>
             <EditorContent editor={editor} />
+            {editor && (
+              <BubbleMenu
+                editor={editor}
+                tippyOptions={{ duration: 150, placement: "bottom", offset: [0, 12], zIndex: 1, appendTo: () => editor.view.dom.parentNode }}
+                shouldShow={({ editor }) => {
+                  const isActive = editor.isActive("genericBlock") && editor.getAttributes("genericBlock")?.class?.includes("blog-cta");
+                  if (isActive) ctaPosRef.current = editor.state.selection.from;
+                  return isActive;
+                }}
+              >
+                <div className="flex items-center overflow-hidden rounded-lg border border-paper-line bg-paper shadow-xl">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); openCtaEdit(); }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-ink hover:bg-paper-card transition-colors"
+                  >
+                    ✏️ Edit CTA
+                  </button>
+                  <div className="w-px h-5 bg-paper-line" />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteNode("genericBlock").run(); }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-danger hover:bg-danger/10 transition-colors"
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                </div>
+              </BubbleMenu>
+            )}
           </div>
           <div className="flex items-center justify-between border-t border-paper-line bg-paper px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted font-semibold">
             <span>{editor ? editor.getText().trim().split(/\s+/).filter(Boolean).length : 0} words</span>
@@ -759,14 +921,56 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
     </div>
   );
 
+  // CTA Edit Modal — centered overlay, always on top
+  const ctaOverlay = ctaModal.open && (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-[30rem] rounded-2xl border border-paper-line bg-paper shadow-2xl p-6 flex flex-col gap-4">
+        <div className="text-base font-bold text-ink">✏️ Edit Call to Action</div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Heading</label>
+          <input autoFocus type="text" value={ctaModal.title} onChange={e => setCtaModal(m => ({ ...m, title: e.target.value }))} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Description</label>
+          <textarea value={ctaModal.desc} onChange={e => setCtaModal(m => ({ ...m, desc: e.target.value }))} rows={4} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none resize-none" />
+        </div>
+
+        <div className="flex gap-3">
+          <div className="flex flex-col gap-1.5 flex-1">
+            <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Button Text</label>
+            <input type="text" value={ctaModal.btnText} onChange={e => setCtaModal(m => ({ ...m, btnText: e.target.value }))} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
+          </div>
+          <div className="flex flex-col gap-1.5 flex-1">
+            <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Link URL</label>
+            <input type="text" value={ctaModal.url} onChange={e => setCtaModal(m => ({ ...m, url: e.target.value }))} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-1">
+          <button onClick={() => setCtaModal({ open: false, title: "", desc: "", btnText: "", url: "" })} className="rounded-lg border border-paper-line px-4 py-2 text-sm font-semibold text-muted hover:bg-paper-card transition-colors">Cancel</button>
+          <button onClick={saveCtaEdit} className="rounded-lg bg-signal px-6 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Update CTA</button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Fullscreen overlay
   if (isFullscreen) {
     return (
-      <div className="fixed inset-0 z-[9999] flex flex-col bg-paper">
-        {editorBody}
-      </div>
+      <>
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-paper">{editorBody}</div>
+        {ctaOverlay}
+      </>
     );
   }
 
-  return editorBody;
+  return (
+    <>
+      {editorBody}
+      {ctaOverlay}
+    </>
+  );
 }
+
