@@ -16,6 +16,8 @@ import DashboardPage from "./pages/DashboardPage";
 import LicensingPage from "./pages/LicensingPage";
 import EstimatorPage from "./pages/EstimatorPage";
 import LicenceRateCard from "./components/Licensing/LicenceRateCard";
+import MigrationToolPage from "./pages/MigrationToolPage";
+import MigrationAssessment from "./components/MigrationTool/MigrationAssessment";
 import ProtectedRoute from "./auth/ProtectedRoute";
 
 function AppShell({ children }) {
@@ -34,6 +36,7 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
       <Route path="/tools/licence-calculator" element={<LicenceRateCard />} />
+      <Route path="/tools/migration-assessment" element={<MigrationAssessment />} />
       <Route
         path="/gallery"
         element={
@@ -150,6 +153,16 @@ export default function App() {
           <ProtectedRoute permission="estimator:view">
             <AppShell>
               <EstimatorPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/migration-tool"
+        element={
+          <ProtectedRoute permission="migration:view">
+            <AppShell>
+              <MigrationToolPage />
             </AppShell>
           </ProtectedRoute>
         }

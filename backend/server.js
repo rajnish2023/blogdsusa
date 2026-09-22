@@ -27,6 +27,8 @@ const licensingRoutes = require("./routes/licensingRoutes");
 const publicLicensingRoutes = require("./routes/publicLicensingRoutes");
 const estimatorRoutes = require("./routes/estimatorRoutes");
 const publicEstimatorRoutes = require("./routes/publicEstimatorRoutes");
+const migrationToolRoutes = require("./routes/migrationToolRoutes");
+const publicMigrationToolRoutes = require("./routes/publicMigrationToolRoutes");
 const { apiLimiter } = require("./middleware/rateLimiter");
 
 const app = express();
@@ -85,6 +87,9 @@ app.use("/api/public/licensing", publicLicensingRoutes);
 app.use("/api/estimator", estimatorRoutes);
 
 app.use("/api/public/estimators", publicEstimatorRoutes);
+
+app.use("/api/migration-tool", migrationToolRoutes);
+app.use("/api/public/migration", publicMigrationToolRoutes);
 
 // Temporary manual seed route
 // const { runSeed } = require("./scripts/seed");
