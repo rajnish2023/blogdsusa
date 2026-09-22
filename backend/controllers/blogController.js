@@ -70,6 +70,7 @@ exports.listBlogs = async (req, res) => {
         all: await Blog.countDocuments({}),
         draft: await Blog.countDocuments({ status: "draft" }),
         published: await Blog.countDocuments({ status: "published" }),
+        scheduled: await Blog.countDocuments({ status: "scheduled" }),
       },
     });
   } catch (err) {
@@ -109,11 +110,19 @@ exports.createBlog = async (req, res) => {
     const slug = await generateUniqueSlug(Blog, requestedSlug || title);
 
     const wantsPublish = status === "published";
+    const wantsSchedule = status === "scheduled";
      
     const canPublish = req.user.role.isSuperAdmin || req.user.role.permissions.includes("blog:publish");
     const canReassignAuthor = req.user.role.isSuperAdmin || req.user.role.permissions.includes("blog:edit");
     
-    const finalStatus = wantsPublish && canPublish ? "published" : "draft";
+    let finalStatus = "draft";
+    if (wantsPublish && canPublish) finalStatus = "published";
+    else if (wantsSchedule && canPublish) {
+      if (!publishedAt || new Date(publishedAt) <= new Date()) {
+        return res.status(400).json({ message: "Scheduled date must be in the future" });
+      }
+      finalStatus = "scheduled";
+    }
 
     let finalAuthor = req.user.id;
     if (author && canReassignAuthor && author !== req.user.id.toString()) {
@@ -157,7 +166,8 @@ exports.createBlog = async (req, res) => {
       status: finalStatus,
       author: finalAuthor,
       reviewedBy: finalReviewedBy || undefined,
-      publishedAt: publishedAt ? new Date(publishedAt) : (finalStatus === "published" ? new Date() : undefined),
+      scheduledAt: finalStatus === "scheduled" ? new Date(publishedAt) : undefined,
+      publishedAt: finalStatus === "published" ? (publishedAt ? new Date(publishedAt) : new Date()) : undefined,
       readingTimeMinutes: readingTime(cleanContent),
     });
 
@@ -253,15 +263,24 @@ exports.updateBlog = async (req, res) => {
  
 exports.setBlogStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!["draft", "published"].includes(status)) {
+    const { status, scheduledAt } = req.body;
+    if (!["draft", "published", "scheduled"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ message: "Post not found" });
 
-    blog.status = status;
-    if (status === "published" && !blog.publishedAt) blog.publishedAt = new Date();
+    if (status === "scheduled") {
+      if (!scheduledAt || new Date(scheduledAt) <= new Date()) {
+        return res.status(400).json({ message: "Scheduled date must be in the future" });
+      }
+      blog.scheduledAt = new Date(scheduledAt);
+      blog.status = "scheduled";
+    } else {
+      blog.status = status;
+      if (status === "published" && !blog.publishedAt) blog.publishedAt = new Date();
+      if (status === "draft") blog.scheduledAt = undefined;
+    }
     await blog.save();
 
     const populated = await blog.populate(populateOpts);

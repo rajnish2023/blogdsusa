@@ -20,8 +20,10 @@ export const updateBlog = async (id, payload) => {
   return data.blog;
 };
 
-export const setBlogStatus = async (id, status) => {
-  const { data } = await client.patch(`/blogs/${id}/status`, { status });
+export const setBlogStatus = async (id, payload) => {
+  // payload can be { status: "draft"|"published"|"scheduled", scheduledAt?: "..." }
+  const body = typeof payload === "string" ? { status: payload } : payload;
+  const { data } = await client.patch(`/blogs/${id}/status`, body);
   return data.blog;
 };
 

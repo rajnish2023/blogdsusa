@@ -70,7 +70,7 @@ exports.listUsers = async (req, res) => {
 // POST /api/users  — admin creates/invites a teammate
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, role, password } = req.body;
+    const { name, email, role, password, designation, avatarUrl, avatarColor, about, socialLinks, schemaMarkup } = req.body;
 
     const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) return res.status(409).json({ message: "A user with that email already exists" });
@@ -78,7 +78,6 @@ exports.createUser = async (req, res) => {
     const roleDoc = await Role.findById(role);
     if (!roleDoc) return res.status(400).json({ message: "Selected role does not exist" });
 
-   
     const tempPassword = password || crypto.randomBytes(9).toString("base64url");
 
     const user = await User.create({
@@ -87,6 +86,12 @@ exports.createUser = async (req, res) => {
       password: tempPassword,
       role: roleDoc._id,
       status: "invited",
+      designation: designation || "",
+      avatarUrl: avatarUrl || "",
+      avatarColor: avatarColor || "#3355FF",
+      about: about || "",
+      socialLinks: socialLinks || undefined,
+      schemaMarkup: schemaMarkup || undefined,
     });
 
     const populated = await user.populate("role");
@@ -102,7 +107,7 @@ exports.createUser = async (req, res) => {
 // PATCH /api/users/:id
 exports.updateUser = async (req, res) => {
   try {
-    const { name, email, role, designation } = req.body;
+    const { name, email, role, designation, password, avatarUrl, avatarColor, about, socialLinks, schemaMarkup } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -113,6 +118,17 @@ exports.updateUser = async (req, res) => {
     }
     if (name) user.name = name;
     if (designation !== undefined) user.designation = designation;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    if (avatarColor) user.avatarColor = avatarColor;
+    if (about !== undefined) user.about = about;
+    if (socialLinks) user.socialLinks = socialLinks;
+    if (schemaMarkup) user.schemaMarkup = schemaMarkup;
+
+    if (password) {
+      // password will be hashed automatically by the pre-save hook
+      user.password = password;
+    }
+
     if (role) {
       const roleDoc = await Role.findById(role);
       if (!roleDoc) return res.status(400).json({ message: "Selected role does not exist" });

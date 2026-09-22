@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Loader2, Save, Send, Pencil, ChevronRight, ChevronDown,
-  PanelRightClose, PanelRightOpen, CheckCircle2, CloudOff, Eye
+  PanelRightClose, PanelRightOpen, CheckCircle2, CloudOff, Eye, Clock
 } from "lucide-react";
 import TipTapEditor from "../components/Blog/TipTapEditor";
 import SeoPanel from "../components/Blog/SeoPanel";
@@ -95,8 +95,9 @@ export default function BlogEditorPage() {
       
       // format date for datetime-local input in IST
       let formattedDate = getISTDateTimeLocal();
-      if (blog.publishedAt) {
-        const d = new Date(blog.publishedAt);
+      const dateSource = blog.scheduledAt || blog.publishedAt;
+      if (dateSource) {
+        const d = new Date(dateSource);
         const istOffset = 330 * 60000;
         const istDate = new Date(d.getTime() + istOffset);
         formattedDate = istDate.toISOString().slice(0, 16);
@@ -185,6 +186,8 @@ export default function BlogEditorPage() {
           // Create new post for first time
           const blog = await createBlog(payload);
           postIdRef.current = blog._id;
+          setStatus(blog.status);
+          setForm(prev => ({ ...prev, slug: blog.slug }));
           // Update the URL without full reload
           navigate(`/blog/${blog._id}/edit`, { replace: true });
         }
@@ -239,17 +242,35 @@ export default function BlogEditorPage() {
     }
     setSaving(true);
     try {
+      const payload = buildPayload(targetStatus);
       if (isEdit) {
-        const blog = await updateBlog(id, buildPayload(targetStatus));
+        let updatedBlog = await updateBlog(id, payload);
         if (targetStatus !== status && canPublish) {
-          await setBlogStatus(id, targetStatus);
+          const statusPayload = { status: targetStatus };
+          if (targetStatus === "scheduled" && form.publishedAt) {
+            statusPayload.scheduledAt = `${form.publishedAt}:00+05:30`;
+          }
+          updatedBlog = await setBlogStatus(id, statusPayload);
         }
+        setStatus(updatedBlog.status);
+        setCurrentAuthor(updatedBlog.author);
+        const toastMsg = targetStatus === "published" ? "Post published" 
+          : targetStatus === "scheduled" ? "Post scheduled" 
+          : "Draft saved";
+        showToast(toastMsg);
+      } else {
+        const blog = await createBlog(payload);
+        const toastMsg = blog.status === "published" ? "Post published"
+          : blog.status === "scheduled" ? "Post scheduled"
+          : "Draft saved";
+        showToast(toastMsg);
+        
+        // Update local state immediately so UI options (like Preview/Schedule) appear instantly
+        postIdRef.current = blog._id;
         setStatus(blog.status);
         setCurrentAuthor(blog.author);
-        showToast(targetStatus === "published" ? "Post published" : "Draft saved");
-      } else {
-        const blog = await createBlog(buildPayload(targetStatus));
-        showToast(blog.status === "published" ? "Post published" : "Draft saved");
+        setForm(prev => ({ ...prev, slug: blog.slug }));
+        
         navigate(`/blog/${blog._id}/edit`, { replace: true });
       }
     } catch (err) {
@@ -280,7 +301,12 @@ export default function BlogEditorPage() {
             <ChevronRight size={12} className="hidden sm:inline text-muted/50" />
             <span className="font-semibold text-signal">{isEdit ? "Edit" : "New post"}</span>
           </div>
-          <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${status === "published" ? "bg-success/10 text-success" : "bg-ink/10 text-muted"}`}>
+          <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+            status === "published" ? "bg-success/10 text-success" : 
+            status === "scheduled" ? "bg-blue-500/10 text-blue-600" : 
+            "bg-ink/10 text-muted"
+          }`}>
+            {status === "scheduled" && <Clock size={10} className="inline mr-0.5 -mt-0.5" />}
             {status}
           </span>
           {/* Auto-save status indicator */}
@@ -309,12 +335,12 @@ export default function BlogEditorPage() {
             {sidebarOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
           </button>
           
-          {/* Preview Button: Only show if it's saved (isEdit) and status is draft */}
-          {isEdit && status === "draft" && (
+          {/* Preview Button: Only show if it's saved and status is draft or scheduled */}
+          {!!postIdRef.current && (status === "draft" || status === "scheduled") && (
             <a
               href={`${"https://www.dynamicssquare.com"}/blog/preview/${form.slug}`}
               target="_blank"
-              rel="noopener noreferrer "
+              rel="noopener noreferrer"
               className="btn-secondary text-xs flex items-center gap-1"
             >
               <Eye size={14} />
@@ -322,10 +348,43 @@ export default function BlogEditorPage() {
             </a>
           )}
 
+          {/* Unschedule: Only show when post is currently scheduled */}
+          {canPublish && status === "scheduled" && (
+            <button onClick={() => handleSave("draft")} disabled={saving} className="btn-secondary text-xs disabled:opacity-60 text-orange-600 border-orange-300 hover:bg-orange-50">
+              <Clock size={14} />
+              Unschedule
+            </button>
+          )}
+
           <button onClick={() => handleSave("draft")} disabled={saving} className="btn-secondary text-xs disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Save draft
           </button>
+
+          {/* Schedule: Show when publish date is in the future and post is not yet published */}
+          {canPublish && status !== "published" && (
+            <button
+              onClick={() => {
+                if (!form.publishedAt) {
+                  showToast("Set a future Publish Date in the sidebar to schedule", "error");
+                  return;
+                }
+                // Check if the date is in the future (compare IST input as IST)
+                const scheduledDate = new Date(`${form.publishedAt}:00+05:30`);
+                if (scheduledDate <= new Date()) {
+                  showToast("Schedule date must be in the future", "error");
+                  return;
+                }
+                handleSave("scheduled");
+              }}
+              disabled={saving}
+              className="text-xs disabled:opacity-60 rounded-lg px-3 py-1.5 font-semibold flex items-center gap-1.5 bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              <Clock size={14} />
+              Schedule
+            </button>
+          )}
+
           {canPublish && (
             <button onClick={() => handleSave("published")} disabled={saving} className="btn-primary text-xs disabled:opacity-60">
               <Send size={14} />
@@ -389,8 +448,8 @@ export default function BlogEditorPage() {
               </div>
             </details>
 
-            {/* Editor (fills remaining height) */}
-            <div className="mb-4 flex-1 flex flex-col min-h-[400px]">
+            {/* Editor (constrained height to prevent pushing SEO section down) */}
+            <div className="mb-4 flex flex-col h-[60vh] min-h-[400px] max-h-[700px]">
               <TipTapEditor
                 value={form.content}
                 onChange={(html) => setForm((f) => ({ ...f, content: html }))}

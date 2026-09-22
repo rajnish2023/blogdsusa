@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Braces, AlertCircle } from "lucide-react";
 
-const SCHEMA_TYPES = ["Article", "BlogPosting", "FAQPage", "HowTo", "Product", "Review", "Custom"];
+const DEFAULT_SCHEMA_TYPES = ["Article", "BlogPosting", "FAQPage", "HowTo", "Product", "Review", "Custom"];
 
 const isValidJson = (str) => {
   if (!str.trim()) return true; 
@@ -13,11 +13,11 @@ const isValidJson = (str) => {
   }
 };
 
-export default function SchemaMarkupPanel({ entries, onChange }) {
+export default function SchemaMarkupPanel({ entries, onChange, allowedTypes = DEFAULT_SCHEMA_TYPES }) {
   const [expanded, setExpanded] = useState(entries.length > 0);
 
   const addEntry = () => {
-    onChange([...entries, { type: "Article", json: "" }]);
+    onChange([...entries, { type: allowedTypes[0], json: "" }]);
     setExpanded(true);
   };
 
@@ -53,7 +53,7 @@ export default function SchemaMarkupPanel({ entries, onChange }) {
                     onChange={(e) => updateEntry(i, { type: e.target.value })}
                     className="rounded-lg border border-paper-line bg-paper px-2.5 py-1.5 text-xs font-medium text-ink focus:border-signal"
                   >
-                    {SCHEMA_TYPES.map((t) => (
+                    {allowedTypes.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>

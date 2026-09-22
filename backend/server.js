@@ -30,10 +30,12 @@ const publicEstimatorRoutes = require("./routes/publicEstimatorRoutes");
 const migrationToolRoutes = require("./routes/migrationToolRoutes");
 const publicMigrationToolRoutes = require("./routes/publicMigrationToolRoutes");
 const { apiLimiter } = require("./middleware/rateLimiter");
+const { startScheduler } = require("./jobs/scheduler");
 
 const app = express();
 
 connectDB();
+startScheduler();
  
 app.set("trust proxy", 1);  
  

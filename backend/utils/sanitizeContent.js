@@ -8,6 +8,7 @@ const ALLOWED_TAGS = [
   "blockquote", "a", "img",
   "table", "thead", "tbody", "tr", "td", "th",
   "code", "pre", "figure", "figcaption",
+  "div", "span", "section", "article", "aside"
 ];
 
 const ALLOWED_ATTRIBUTES = {
@@ -15,7 +16,7 @@ const ALLOWED_ATTRIBUTES = {
   img: ["src", "alt", "title", "width", "height"],
   td: ["colspan", "rowspan"],
   th: ["colspan", "rowspan"],
-  "*": [], 
+  "*": ["style", "class", "id", "dir", "lang"],
 };
 
 const sanitizeBlogContent = (html = "") =>
@@ -23,7 +24,7 @@ const sanitizeBlogContent = (html = "") =>
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRIBUTES,
     allowedSchemes: ["http", "https", "mailto"],
-    transformTags: { div: "p" },
+    // Removing the transformTags { div: "p" } so divs are preserved natively
   }).trim();
 
 module.exports = { sanitizeBlogContent };
