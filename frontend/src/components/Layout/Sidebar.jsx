@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Images, Users, Newspaper, LayoutTemplate, LogOut, Database, Settings, Calculator, Coins } from "lucide-react";
+import { LayoutDashboard, Images, Users, Newspaper, LayoutTemplate, LogOut, Database, Settings, Calculator, Coins, Route } from "lucide-react";
 import { useAuth } from "../../auth/AuthContext";
 import { Avatar } from "../Users/Badges";
 import Logo from "./Logo";
@@ -12,6 +12,7 @@ const navItems = [
   { to: "/pages",   label: "Webpages",     icon: LayoutTemplate, live: true, permission: "pages:view" },
   { to: "/licensing", label: "Licence Calculator", icon: Calculator, live: true, permission: "licensing:view" },
   { to: "/estimator", label: "Price Estimator", icon: Coins, live: true, permission: "estimator:view" },
+  { to: "/migration-tool", label: "Migration Assessment", icon: Route, live: true, permission: "migration:view" },
   { to: "/settings", label: "Settings",    icon: Settings,      live: true, superAdminOnly: true },
   { to: "/migrate", label: "Database Admin", icon: Database,     live: true, superAdminOnly: true },
 ];

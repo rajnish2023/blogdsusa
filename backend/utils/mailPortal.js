@@ -6,6 +6,8 @@ const TEMPLATES = {
   licensingCustomer: process.env.MAIL_TPL_LICENSING_CUSTOMER,
   estimatorInternal: process.env.MAIL_TPL_ESTIMATOR_INTERNAL,
   estimatorCustomer: process.env.MAIL_TPL_ESTIMATOR_CUSTOMER,
+  migrationInternal: process.env.MAIL_TPL_MIGRATION_INTERNAL,
+  migrationCustomer: process.env.MAIL_TPL_MIGRATION_CUSTOMER,
 };
 
 const sendViaPortal = async (templateId, payload) => {
@@ -44,10 +46,6 @@ const sendViaPortal = async (templateId, payload) => {
 const sendTemplate = (role, payload) => sendViaPortal(TEMPLATES[role], payload);
 
 /* ---- helpers for building the readable block templates render ---- */
-
-/* People type their names in lower case. Capitalise each part for display,
-   including after an apostrophe or hyphen, so "o'brien-smith" reads correctly.
-   Left alone if they already used capitals themselves. */
 const titleCase = (s) =>
   String(s ?? "")
     .trim()

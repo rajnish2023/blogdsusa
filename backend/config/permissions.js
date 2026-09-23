@@ -36,6 +36,10 @@ const PERMISSIONS = [
   { key: "estimator:edit", module: "Price Estimator", action: "Edit", description: "Edit estimator questions, pricing and result page copy" },
   { key: "estimator:delete", module: "Price Estimator", action: "Delete", description: "Delete price estimators and their submissions" },
   { key: "estimator:responses", module: "Price Estimator", action: "Responses", description: "View estimator submissions and re-send report emails" },
+
+  { key: "migration:view", module: "Migration Assessment", action: "View", description: "View migration assessment enquiries and the scoring model" },
+  { key: "migration:manage", module: "Migration Assessment", action: "Manage", description: "Update the status and notes on migration enquiries" },
+  { key: "migration:delete", module: "Migration Assessment", action: "Delete", description: "Delete migration assessment enquiries" },
 ];
 
 const PERMISSION_KEYS = PERMISSIONS.map((p) => p.key);
