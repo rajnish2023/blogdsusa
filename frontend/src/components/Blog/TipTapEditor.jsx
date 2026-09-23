@@ -376,6 +376,92 @@ function LinkDropdown({ editor, disabled }) {
   );
 }
 
+function MiniDescEditor({ value, onChange }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: false, codeBlock: false, blockquote: false }),
+      Link.configure({ openOnClick: false }),
+      Underline,
+      Extension.create({
+        name: 'miniLinkShortcut',
+        addKeyboardShortcuts() {
+          return {
+            'Mod-k': () => {
+              const previousUrl = this.editor.getAttributes('link').href || '';
+              const url = window.prompt('Enter link URL:', previousUrl);
+              
+              if (url === null) return true;
+
+              if (url === '') {
+                this.editor.chain().focus().extendMarkRange('link').unsetLink().run();
+                return true;
+              }
+
+              this.editor.chain().focus()
+                .extendMarkRange('link')
+                .setLink({ href: url, target: '_blank' })
+                .setTextSelection(this.editor.state.selection.to)
+                .run();
+                
+              this.editor.view.dispatch(this.editor.state.tr.removeStoredMark(this.editor.schema.marks.link));
+              return true;
+            },
+          };
+        },
+      })
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    }
+  });
+
+  useEffect(() => {
+    if (editor && value !== undefined) {
+      const current = editor.getHTML();
+      if (value !== current && value !== "<p></p>") {
+        editor.commands.setContent(value || "");
+      }
+    }
+  }, [value, editor]);
+
+  if (!editor) return null;
+
+  return (
+    <div className="rounded border border-paper-line bg-paper-card overflow-hidden flex flex-col focus-within:border-signal transition-colors">
+      <div className="flex flex-wrap items-center gap-1 border-b border-paper-line bg-paper px-2 py-1">
+        <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1 rounded ${editor.isActive('bold') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><Bold size={13} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1 rounded ${editor.isActive('italic') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><Italic size={13} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-1 rounded ${editor.isActive('underline') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><UnderlineIcon size={13} /></button>
+        <div className="w-px h-3 bg-paper-line mx-1" />
+        <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1 rounded ${editor.isActive('bulletList') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><List size={13} /></button>
+        <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1 rounded ${editor.isActive('orderedList') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><ListOrdered size={13} /></button>
+        <div className="w-px h-3 bg-paper-line mx-1" />
+        <button type="button" onClick={() => {
+            const previousUrl = editor.getAttributes('link').href || '';
+            const url = window.prompt('Enter link URL:', previousUrl);
+            
+            if (url === null) return;
+
+            if (url === '') {
+              editor.chain().focus().extendMarkRange('link').unsetLink().run();
+              return;
+            }
+
+            editor.chain().focus()
+              .extendMarkRange('link')
+              .setLink({ href: url, target: '_blank' })
+              .setTextSelection(editor.state.selection.to)
+              .run();
+              
+            editor.view.dispatch(editor.state.tr.removeStoredMark(editor.schema.marks.link));
+          }} className={`p-1 rounded ${editor.isActive('link') ? 'bg-signal text-white' : 'hover:bg-paper-card text-ink'}`}><LinkIcon size={13} /></button>
+      </div>
+      <EditorContent editor={editor} className="px-3 py-3 text-sm text-ink min-h-[140px] max-h-[240px] overflow-y-auto outline-none [&_.ProseMirror]:outline-none [&_p]:my-1.5 [&_ul]:my-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_ol]:my-1.5 [&_ol]:pl-5 [&_ol]:list-decimal [&_a]:text-signal [&_a]:underline" />
+    </div>
+  );
+}
+
 
 function CtaDropdown({ editor, disabled }) {
   const [open, setOpen] = useState(false);
@@ -400,46 +486,51 @@ function CtaDropdown({ editor, disabled }) {
       finalUrl = "https://" + finalUrl;
     }
     const buttonHtml = finalUrl ? `<a href="${finalUrl}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${btnText || "Click Here"}</a>` : "";
-    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${title || "Call to Action"}</h4><p class="blog-cta__desc">${desc.replace(/\n/g, "<br/>")}</p>${buttonHtml}</div>`;
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${title || "Call to Action"}</h4><div class="blog-cta__desc">${desc}</div>${buttonHtml}</div>`;
     editor.chain().focus().insertContent(html).run();
     setOpen(false);
   };
 
   return (
-    <div className="relative flex" ref={ref}>
-      <ToolbarButton title="Insert Call to Action" active={open} disabled={disabled} onClick={() => setOpen(o => !o)}>
+    <>
+      <ToolbarButton title="Insert Call to Action" active={open} disabled={disabled} onClick={() => setOpen(true)}>
         <Megaphone size={15} />
       </ToolbarButton>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-[9999] flex flex-col gap-3 rounded-lg border border-paper-line bg-paper-card p-4 shadow-xl w-[22rem]">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Insert Call to Action</div>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
+          <div className="w-[30rem] rounded-2xl border border-paper-line bg-paper shadow-2xl p-6 flex flex-col gap-4" onMouseDown={e => e.stopPropagation()}>
+            <div className="text-base font-bold text-ink">📣 Insert Call to Action</div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-muted uppercase">Heading</label>
-            <input type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-muted uppercase">Description</label>
-            <textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none resize-none" />
-          </div>
-          <div className="flex gap-2">
-            <div className="flex flex-col gap-1 flex-1">
-              <label className="text-[10px] font-semibold text-muted uppercase">Button Text</label>
-              <input type="text" value={btnText} onChange={e => setBtnText(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Heading</label>
+              <input autoFocus type="text" value={title} onChange={e => setTitle(e.target.value)} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
             </div>
-            <div className="flex flex-col gap-1 flex-1">
-              <label className="text-[10px] font-semibold text-muted uppercase">Link URL</label>
-              <input type="text" value={url} onChange={e => setUrl(e.target.value)} className="w-full rounded border border-paper-line bg-paper px-2 py-1.5 text-xs text-ink focus:border-signal outline-none" />
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Description</label>
+              <MiniDescEditor value={desc} onChange={setDesc} />
             </div>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <button onClick={insertCta} className="flex-1 rounded-md bg-signal py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity">Insert CTA Block</button>
-            <button onClick={() => setOpen(false)} className="rounded-md border border-paper-line px-2.5 py-1.5 text-xs font-semibold text-muted hover:bg-paper transition-colors">Cancel</button>
+
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Button Text</label>
+                <input type="text" value={btnText} onChange={e => setBtnText(e.target.value)} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
+              </div>
+              <div className="flex flex-col gap-1.5 flex-1">
+                <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Link URL</label>
+                <input type="text" value={url} onChange={e => setUrl(e.target.value)} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none" />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-1">
+              <button onClick={() => setOpen(false)} className="rounded-lg border border-paper-line px-4 py-2 text-sm font-semibold text-muted hover:bg-paper-card transition-colors">Cancel</button>
+              <button onClick={insertCta} className="rounded-lg bg-signal px-6 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Insert CTA</button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -514,23 +605,35 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
   const openCtaEdit = () => {
     if (!editor || ctaPosRef.current === null) return;
     const from = ctaPosRef.current;
-    let nodePos = null;
-    editor.state.doc.nodesBetween(0, editor.state.doc.content.size, (node, pos) => {
-      if (nodePos !== null) return false;
-      if (node.type.name === "genericBlock" && (node.attrs?.class || "").includes("blog-cta")) {
-        if (pos <= from && pos + node.nodeSize >= from) nodePos = pos;
+    
+    // Precisely find the outer .blog-cta node
+    let targetPos = null;
+    editor.state.doc.nodesBetween(Math.max(0, from - 1000), Math.min(editor.state.doc.content.size, from + 1000), (node, pos) => {
+      if (targetPos !== null) return false;
+      if (node.type.name === "genericBlock" && (node.attrs?.class || "").split(" ").includes("blog-cta")) {
+        if (pos <= from && pos + node.nodeSize >= from) targetPos = pos;
       }
     });
-    if (nodePos === null) return;
-    const domNode = editor.view.nodeDOM(nodePos);
+
+    if (targetPos === null) return;
+    const domNode = editor.view.nodeDOM(targetPos);
     const el = domNode instanceof HTMLElement
       ? (domNode.classList.contains("blog-cta") ? domNode : domNode.querySelector(".blog-cta"))
       : null;
     if (!el) return;
     const title = el.querySelector("h4")?.textContent?.trim() || "";
-    const allPs = Array.from(el.querySelectorAll("p"));
-    const descEl = allPs.find(p => !p.querySelector("a"));
-    const desc = descEl ? descEl.innerHTML.replace(/<br\s*\/?>/gi, "\n").replace(/(<([^>]+)>)/gi, "").trim() : "";
+    
+    let desc = "";
+    const descEl = el.querySelector(".blog-cta__desc");
+    if (descEl) {
+      desc = descEl.innerHTML.trim();
+    } else {
+      // Legacy fallback
+      const allPs = Array.from(el.querySelectorAll("p"));
+      const fallbackDescEl = allPs.find(p => !p.querySelector("a"));
+      desc = fallbackDescEl ? fallbackDescEl.innerHTML.trim() : "";
+    }
+    
     const aTag = el.querySelector("a");
     setCtaModal({ open: true, title, desc, btnText: aTag?.textContent?.trim() || "", url: aTag?.getAttribute("href") || "" });
   };
@@ -541,8 +644,24 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
       finalUrl = "https://" + finalUrl;
     }
     const buttonHtml = finalUrl ? `<a href="${finalUrl}" class="blog-cta__btn" target="_blank" rel="noopener noreferrer">${ctaModal.btnText || "Click Here"}</a>` : "";
-    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${ctaModal.title || "Call to Action"}</h4><p class="blog-cta__desc">${ctaModal.desc.replace(/\n/g, "<br/>")}</p>${buttonHtml}</div>`;
-    editor.chain().focus().deleteNode("genericBlock").insertContent(html).run();
+    const html = `<div class="blog-cta"><h4 class="blog-cta__title">${ctaModal.title || "Call to Action"}</h4><div class="blog-cta__desc">${ctaModal.desc}</div>${buttonHtml}</div>`;
+    
+    const from = ctaPosRef.current;
+    let targetPos = null;
+    let targetSize = null;
+    editor.state.doc.nodesBetween(Math.max(0, from - 1000), Math.min(editor.state.doc.content.size, from + 1000), (node, pos) => {
+      if (node.type.name === "genericBlock" && (node.attrs?.class || "").split(" ").includes("blog-cta")) {
+        if (pos <= from && pos + node.nodeSize >= from) {
+          targetPos = pos;
+          targetSize = node.nodeSize;
+          return false;
+        }
+      }
+    });
+
+    if (targetPos !== null) {
+      editor.chain().focus().deleteRange({ from: targetPos, to: targetPos + targetSize }).insertContentAt(targetPos, html).run();
+    }
     setCtaModal({ open: false, title: "", desc: "", btnText: "", url: "" });
   };
 
@@ -889,7 +1008,15 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
                 editor={editor}
                 tippyOptions={{ duration: 150, placement: "bottom", offset: [0, 12], zIndex: 1, appendTo: () => editor.view.dom.parentNode }}
                 shouldShow={({ editor }) => {
-                  const isActive = editor.isActive("genericBlock") && editor.getAttributes("genericBlock")?.class?.includes("blog-cta");
+                  let isActive = false;
+                  const { $from } = editor.state.selection;
+                  for (let i = $from.depth; i > 0; i--) {
+                    const node = $from.node(i);
+                    if (node.type.name === "genericBlock" && (node.attrs?.class || "").split(" ").includes("blog-cta")) {
+                      isActive = true;
+                      break;
+                    }
+                  }
                   if (isActive) ctaPosRef.current = editor.state.selection.from;
                   return isActive;
                 }}
@@ -905,7 +1032,24 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
                   <div className="w-px h-5 bg-paper-line" />
                   <button
                     type="button"
-                    onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().deleteNode("genericBlock").run(); }}
+                    onMouseDown={(e) => { 
+                      e.preventDefault(); 
+                      const from = ctaPosRef.current;
+                      let targetPos = null;
+                      let targetSize = null;
+                      editor.state.doc.nodesBetween(Math.max(0, from - 1000), Math.min(editor.state.doc.content.size, from + 1000), (node, pos) => {
+                        if (node.type.name === "genericBlock" && (node.attrs?.class || "").split(" ").includes("blog-cta")) {
+                          if (pos <= from && pos + node.nodeSize >= from) {
+                            targetPos = pos;
+                            targetSize = node.nodeSize;
+                            return false;
+                          }
+                        }
+                      });
+                      if (targetPos !== null) {
+                        editor.chain().focus().deleteRange({ from: targetPos, to: targetPos + targetSize }).run();
+                      }
+                    }}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-danger hover:bg-danger/10 transition-colors"
                   >
                     <Trash2 size={13} /> Remove
@@ -936,7 +1080,7 @@ export default function TipTapEditor({ value, onChange, placeholder = "Write you
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-semibold text-muted uppercase tracking-wider">Description</label>
-          <textarea value={ctaModal.desc} onChange={e => setCtaModal(m => ({ ...m, desc: e.target.value }))} rows={4} className="w-full rounded-lg border border-paper-line bg-paper-card px-3 py-2.5 text-sm text-ink focus:border-signal outline-none resize-none" />
+          <MiniDescEditor value={ctaModal.desc} onChange={val => setCtaModal(m => ({ ...m, desc: val }))} />
         </div>
 
         <div className="flex gap-3">

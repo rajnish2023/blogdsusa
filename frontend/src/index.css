@@ -78,6 +78,7 @@
 .tiptap-content table td, .tiptap-content table th { border: 1px solid #e7e4dc; padding: 0.4em 0.6em; text-align: left; vertical-align: top; }
 .tiptap-content table th { background: #f6f5f2; font-weight: 600; }
 .tiptap-content table .selectedCell { background: #eaedff; }
+
 /* ── Blog CTA Block ── */
 .blog-cta {
   border-left: 5px solid #1565c0;
@@ -101,6 +102,23 @@
   font-size: 0.9375rem;
   line-height: 1.65;
 }
+.blog-cta .blog-cta__desc p {
+  margin: 0 0 0.5em 0;
+}
+.blog-cta .blog-cta__desc p:last-child {
+  margin-bottom: 0;
+}
+.blog-cta .blog-cta__desc ul, .blog-cta .blog-cta__desc ol {
+  margin: 0 0 0.5em 0;
+  padding-left: 1.5em;
+}
+.blog-cta .blog-cta__desc ul { list-style: disc; }
+.blog-cta .blog-cta__desc ol { list-style: decimal; }
+.blog-cta .blog-cta__desc a {
+  color: #1565c0;
+  text-decoration: underline;
+  font-weight: 600;
+}
 .blog-cta .blog-cta__btn {
   display: inline-block;
   background-color: #1565c0;
@@ -116,3 +134,4 @@
   background-color: #0d47a1;
   transform: translateY(-1px);
 }
+
